@@ -262,19 +262,48 @@ class EmotionClassifier(nn.Module):
 
 @st.cache_resource(show_spinner=False)
 def load_model():
-    """Load trained model (cached across sessions)"""
+    """Load trained model from HuggingFace Hub (cached across sessions)"""
+    from huggingface_hub import hf_hub_download
+    import shutil
+
+    HF_REPO = "jenosbliss/emotracker-model"
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     try:
+        # Download model files from HuggingFace Hub
+        # These are cached automatically by huggingface_hub
+        model_dir = "model"
+        os.makedirs(model_dir, exist_ok=True)
+        os.makedirs(os.path.join(model_dir, "tokenizer"), exist_ok=True)
+
+        # Download all required files
+        files_to_download = [
+            "model/full_model.pt",
+            "model/metadata.pkl",
+            "model/emotions.pkl",
+            "model/tokenizer/special_tokens_map.json",
+            "model/tokenizer/tokenizer.json",
+            "model/tokenizer/tokenizer_config.json",
+            "model/tokenizer/vocab.txt",
+        ]
+
+        for file_path in files_to_download:
+            local_path = file_path
+            if not os.path.exists(local_path) or os.path.getsize(local_path) < 1000:
+                # File missing or is a Git LFS pointer (tiny file)
+                downloaded = hf_hub_download(
+                    repo_id=HF_REPO,
+                    filename=file_path,
+                )
+                # Copy to expected location
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                if not os.path.exists(local_path) or os.path.getsize(local_path) < 1000:
+                    shutil.copy2(downloaded, local_path)
+
         tokenizer = AutoTokenizer.from_pretrained('model/tokenizer')
 
-        # Try loading full model first
-        try:
-            model = torch.load('model/full_model.pt', map_location=device)
-        except Exception:
-            model = EmotionClassifier(n_classes=6)
-            checkpoint = torch.load('model/best_model.pt', map_location=device)
-            model.load_state_dict(checkpoint['model_state_dict'])
+        # Load the model
+        model = torch.load('model/full_model.pt', map_location=device, weights_only=False)
 
         model.to(device)
         model.eval()
@@ -289,6 +318,8 @@ def load_model():
         return model, tokenizer, device, metadata, emotions
     except Exception as e:
         st.error(f"❌ Error loading model: {e}")
+        import traceback
+        st.error(traceback.format_exc())
         return None, None, None, None, None
 
 
