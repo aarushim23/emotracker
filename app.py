@@ -48,46 +48,84 @@ class EmotionClassifier(nn.Module):
         return self.fc(x)
 
 def load_model():
-    """Load trained model"""
+    """Load trained model - supports both local files and HuggingFace Hub"""
     global model, tokenizer, device, EMOTIONS, metadata
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    try:
-        print("📂 Loading tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained('model/tokenizer')
-        
-        print("🤖 Loading model...")
-        # Try loading full model first
+    # Try local model first, then HuggingFace Hub
+    if os.path.exists('model/tokenizer'):
+        print("📂 Loading from local model files...")
         try:
-            model = torch.load('model/full_model.pt', map_location=device)
-            print("✓ Loaded full model")
-        except:
-            # If full model fails, try loading state dict
-            print("⚠️ Full model load failed, trying state dict...")
-            model = EmotionClassifier(n_classes=6)
-            checkpoint = torch.load('model/best_model.pt', map_location=device)
-            model.load_state_dict(checkpoint['model_state_dict'])
-            print("✓ Loaded model from checkpoint")
+            tokenizer = AutoTokenizer.from_pretrained('model/tokenizer')
+            
+            try:
+                model = torch.load('model/full_model.pt', map_location=device)
+                print("✓ Loaded full model")
+            except:
+                print("⚠️ Full model load failed, trying state dict...")
+                model = EmotionClassifier(n_classes=6)
+                checkpoint = torch.load('model/best_model.pt', map_location=device)
+                model.load_state_dict(checkpoint['model_state_dict'])
+                print("✓ Loaded model from checkpoint")
+            
+            model.to(device)
+            model.eval()
+            
+            with open('model/metadata.pkl', 'rb') as f:
+                metadata = pickle.load(f)
+            with open('model/emotions.pkl', 'rb') as f:
+                EMOTIONS = pickle.load(f)
+            
+            print("✓ Model loaded successfully (local)")
+            return True
+        except Exception as e:
+            print(f"⚠️ Local load failed: {e}, trying HuggingFace Hub...")
+    
+    # HuggingFace Hub fallback (for cloud deployment)
+    try:
+        from huggingface_hub import hf_hub_download
+        import shutil
         
+        HF_REPO = "jenosbliss/emotracker-model"
+        print(f"☁️ Downloading model from HuggingFace Hub ({HF_REPO})...")
+        
+        weights_path = hf_hub_download(repo_id=HF_REPO, filename="model/model_weights.pt")
+        metadata_path = hf_hub_download(repo_id=HF_REPO, filename="model/metadata.pkl")
+        emotions_path = hf_hub_download(repo_id=HF_REPO, filename="model/emotions.pkl")
+        
+        tokenizer_files = [
+            "model/tokenizer/special_tokens_map.json",
+            "model/tokenizer/tokenizer.json",
+            "model/tokenizer/tokenizer_config.json",
+            "model/tokenizer/vocab.txt",
+        ]
+        tokenizer_dir = os.path.join(os.path.dirname(weights_path), "tokenizer_local")
+        os.makedirs(tokenizer_dir, exist_ok=True)
+        for tf in tokenizer_files:
+            src = hf_hub_download(repo_id=HF_REPO, filename=tf)
+            dst = os.path.join(tokenizer_dir, os.path.basename(tf))
+            if not os.path.exists(dst):
+                shutil.copy2(src, dst)
+        
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
+        
+        model = EmotionClassifier(n_classes=6)
+        state_dict = torch.load(weights_path, map_location=device, weights_only=True)
+        model.load_state_dict(state_dict)
         model.to(device)
         model.eval()
         
-        # Load metadata
-        with open('model/metadata.pkl', 'rb') as f:
+        with open(metadata_path, 'rb') as f:
             metadata = pickle.load(f)
-        
-        with open('model/emotions.pkl', 'rb') as f:
+        with open(emotions_path, 'rb') as f:
             EMOTIONS = pickle.load(f)
         
-        print("✓ Model loaded successfully")
-        print(f"  Accuracy: {metadata.get('validation_accuracy', 0):.2%}")
+        print("✓ Model loaded successfully (HuggingFace Hub)")
         print(f"  Device: {device}")
-        
         return True
     except Exception as e:
         print(f"❌ Error loading model: {e}")
-        print("Please run train_model.py first!")
         import traceback
         traceback.print_exc()
         return False

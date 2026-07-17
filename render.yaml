@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: emotracker
+    runtime: python
+    buildCommand: pip install -r requirements-render.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1
+    envVars:
+      - key: LOG_DIR
+        value: /tmp
+      - key: PYTHON_VERSION
+        value: "3.11.0"
