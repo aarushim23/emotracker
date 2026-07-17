@@ -264,55 +264,48 @@ class EmotionClassifier(nn.Module):
 def load_model():
     """Load trained model from HuggingFace Hub (cached across sessions)"""
     from huggingface_hub import hf_hub_download
-    import shutil
 
     HF_REPO = "jenosbliss/emotracker-model"
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     try:
         # Download model files from HuggingFace Hub
-        # These are cached automatically by huggingface_hub
-        model_dir = "model"
-        os.makedirs(model_dir, exist_ok=True)
-        os.makedirs(os.path.join(model_dir, "tokenizer"), exist_ok=True)
+        # hf_hub_download caches files automatically
+        weights_path = hf_hub_download(repo_id=HF_REPO, filename="model/model_weights.pt")
+        metadata_path = hf_hub_download(repo_id=HF_REPO, filename="model/metadata.pkl")
+        emotions_path = hf_hub_download(repo_id=HF_REPO, filename="model/emotions.pkl")
 
-        # Download all required files
-        files_to_download = [
-            "model/full_model.pt",
-            "model/metadata.pkl",
-            "model/emotions.pkl",
+        # Download tokenizer files to local dir (AutoTokenizer needs a directory)
+        tokenizer_files = [
             "model/tokenizer/special_tokens_map.json",
             "model/tokenizer/tokenizer.json",
             "model/tokenizer/tokenizer_config.json",
             "model/tokenizer/vocab.txt",
         ]
+        tokenizer_dir = os.path.join(os.path.dirname(weights_path), "tokenizer_local")
+        os.makedirs(tokenizer_dir, exist_ok=True)
+        for tf in tokenizer_files:
+            src = hf_hub_download(repo_id=HF_REPO, filename=tf)
+            dst = os.path.join(tokenizer_dir, os.path.basename(tf))
+            if not os.path.exists(dst):
+                import shutil
+                shutil.copy2(src, dst)
 
-        for file_path in files_to_download:
-            local_path = file_path
-            if not os.path.exists(local_path) or os.path.getsize(local_path) < 1000:
-                # File missing or is a Git LFS pointer (tiny file)
-                downloaded = hf_hub_download(
-                    repo_id=HF_REPO,
-                    filename=file_path,
-                )
-                # Copy to expected location
-                os.makedirs(os.path.dirname(local_path), exist_ok=True)
-                if not os.path.exists(local_path) or os.path.getsize(local_path) < 1000:
-                    shutil.copy2(downloaded, local_path)
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 
-        tokenizer = AutoTokenizer.from_pretrained('model/tokenizer')
-
-        # Load the model
-        model = torch.load('model/full_model.pt', map_location=device, weights_only=False)
+        # Create model and load state_dict (version-agnostic, unlike torch.load of full model)
+        model = EmotionClassifier(n_classes=6)
+        state_dict = torch.load(weights_path, map_location=device, weights_only=True)
+        model.load_state_dict(state_dict)
 
         model.to(device)
         model.eval()
 
         # Load metadata
-        with open('model/metadata.pkl', 'rb') as f:
+        with open(metadata_path, 'rb') as f:
             metadata = pickle.load(f)
 
-        with open('model/emotions.pkl', 'rb') as f:
+        with open(emotions_path, 'rb') as f:
             emotions = pickle.load(f)
 
         return model, tokenizer, device, metadata, emotions
