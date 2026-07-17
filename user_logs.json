@@ -1,0 +1,106 @@
+[
+  {
+    "timestamp": "2025-11-30T11:20:49.297732",
+    "text": "I am feeling happy and excited about today!",
+    "predicted_emotion": "joy",
+    "emotion_probs": {
+      "sadness": 7.485807145712897e-05,
+      "joy": 0.9997782111167908,
+      "love": 5.211979441810399e-05,
+      "anger": 4.076337063452229e-05,
+      "fear": 2.118641532433685e-05,
+      "surprise": 3.2885778637137264e-05
+    }
+  },
+  {
+    "timestamp": "2025-11-30T11:21:24.153891",
+    "text": "the weather makes me feel positive and cheerful",
+    "predicted_emotion": "joy",
+    "emotion_probs": {
+      "sadness": 4.6052460675127804e-05,
+      "joy": 0.9997938275337219,
+      "love": 6.819340342190117e-05,
+      "anger": 3.190736242686398e-05,
+      "fear": 2.35961106227478e-05,
+      "surprise": 3.652090163086541e-05
+    }
+  },
+  {
+    "timestamp": "2025-11-30T11:21:40.877673",
+    "text": "i loved the breakfast today",
+    "predicted_emotion": "love",
+    "emotion_probs": {
+      "sadness": 0.0002242413320345804,
+      "joy": 0.00027414580108597875,
+      "love": 0.9991520643234253,
+      "anger": 0.00021523391478694975,
+      "fear": 4.6127915993565693e-05,
+      "surprise": 8.823154348647222e-05
+    }
+  },
+  {
+    "timestamp": "2025-11-30T11:21:47.015122",
+    "text": "I am so grateful for my friends and family.",
+    "predicted_emotion": "joy",
+    "emotion_probs": {
+      "sadness": 0.0015107060316950083,
+      "joy": 0.8703986406326294,
+      "love": 0.12560033798217773,
+      "anger": 0.001710727927275002,
+      "fear": 0.00029778090538457036,
+      "surprise": 0.00048176993732340634
+    }
+  },
+  {
+    "timestamp": "2025-11-30T11:21:54.967169",
+    "text": "I am feeling happy and excited about today!",
+    "predicted_emotion": "joy",
+    "emotion_probs": {
+      "sadness": 7.485807145712897e-05,
+      "joy": 0.9997782111167908,
+      "love": 5.211979441810399e-05,
+      "anger": 4.076337063452229e-05,
+      "fear": 2.118641532433685e-05,
+      "surprise": 3.2885778637137264e-05
+    }
+  },
+  {
+    "timestamp": "2025-11-30T11:23:45.178732",
+    "text": "I am worried about what might happen next.",
+    "predicted_emotion": "fear",
+    "emotion_probs": {
+      "sadness": 0.025695083662867546,
+      "joy": 0.0019163234392181039,
+      "love": 0.00030327055719681084,
+      "anger": 0.026788484305143356,
+      "fear": 0.9451573491096497,
+      "surprise": 0.0001394597056787461
+    }
+  },
+  {
+    "timestamp": "2025-11-30T11:23:53.486885",
+    "text": "I feel overwhelmed and stressed about everything.",
+    "predicted_emotion": "surprise",
+    "emotion_probs": {
+      "sadness": 0.000671908725053072,
+      "joy": 0.0008115632808767259,
+      "love": 0.0004709468921646476,
+      "anger": 0.000419596501160413,
+      "fear": 0.1598898023366928,
+      "surprise": 0.8377361297607422
+    }
+  },
+  {
+    "timestamp": "2025-11-30T11:24:21.206242",
+    "text": "i really hate how things are working out recently",
+    "predicted_emotion": "anger",
+    "emotion_probs": {
+      "sadness": 0.1871386021375656,
+      "joy": 0.21266551315784454,
+      "love": 0.0011883091647177935,
+      "anger": 0.5883570313453674,
+      "fear": 0.009855554439127445,
+      "surprise": 0.0007951148436404765
+    }
+  }
+]

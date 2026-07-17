@@ -1,0 +1,759 @@
+{% extends "base.html" %}
+
+{% block title %}Wellness Resources - EmoTrack{% endblock %}
+
+{% block extra_js %}
+<script>
+    let breathingInterval;
+    let breathingActive = false;
+    let breathingPhase = 0;
+    let breathingCycles = 0;
+    const maxCycles = 4; // 4 complete cycles
+    
+    const phases = [
+        { 
+            text: 'Breathe In', 
+            instruction: '🌬️ Inhale deeply through your nose for 4 seconds', 
+            scale: 1.4,
+            color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+        },
+        { 
+            text: 'Hold', 
+            instruction: '⏸️ Hold your breath for 4 seconds', 
+            scale: 1.4,
+            color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+        },
+        { 
+            text: 'Breathe Out', 
+            instruction: '💨 Exhale slowly through your mouth for 4 seconds', 
+            scale: 1,
+            color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+        },
+        { 
+            text: 'Hold', 
+            instruction: '⏸️ Hold your breath for 4 seconds', 
+            scale: 1,
+            color: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
+        }
+    ];
+    
+    function startBreathing() {
+        if (breathingActive) return;
+        
+        breathingActive = true;
+        breathingPhase = 0;
+        breathingCycles = 0;
+        
+        document.getElementById('breathingBtn').style.display = 'none';
+        document.getElementById('resetBtn').style.display = 'inline-block';
+        
+        nextPhase();
+        breathingInterval = setInterval(nextPhase, 4000);
+    }
+    
+    function nextPhase() {
+        const circle = document.getElementById('breathingCircle');
+        const text = document.getElementById('breathingText');
+        const instruction = document.getElementById('breathingInstruction');
+        
+        const current = phases[breathingPhase];
+        
+        // Update text and instruction
+        text.textContent = current.text;
+        text.style.animation = 'fadeIn 0.5s ease-in';
+        instruction.textContent = current.instruction;
+        instruction.style.animation = 'fadeIn 0.5s ease-in';
+        
+        // Update circle
+        circle.style.transform = `scale(${current.scale})`;
+        circle.style.background = current.color;
+        circle.style.boxShadow = `0 20px 60px ${current.scale > 1 ? 'rgba(79,172,254,0.6)' : 'rgba(250,112,154,0.6)'}`;
+        
+        // Move to next phase
+        breathingPhase++;
+        
+        // Check if cycle complete
+        if (breathingPhase >= phases.length) {
+            breathingPhase = 0;
+            breathingCycles++;
+            
+            // Check if all cycles complete
+            if (breathingCycles >= maxCycles) {
+                setTimeout(() => {
+                    completeBreathing();
+                }, 4000);
+            }
+        }
+    }
+    
+    function completeBreathing() {
+        clearInterval(breathingInterval);
+        breathingActive = false;
+        
+        const circle = document.getElementById('breathingCircle');
+        const text = document.getElementById('breathingText');
+        const instruction = document.getElementById('breathingInstruction');
+        
+        text.textContent = '✨ Complete!';
+        instruction.textContent = '🎉 Great job! You completed 4 breathing cycles';
+        circle.style.transform = 'scale(1)';
+        circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        
+        document.getElementById('breathingBtn').style.display = 'inline-block';
+        document.getElementById('breathingBtn').innerHTML = '<i class="fas fa-redo"></i> Start Again';
+        document.getElementById('resetBtn').style.display = 'none';
+    }
+    
+    function resetBreathing() {
+        clearInterval(breathingInterval);
+        breathingActive = false;
+        breathingPhase = 0;
+        breathingCycles = 0;
+        
+        const circle = document.getElementById('breathingCircle');
+        const text = document.getElementById('breathingText');
+        const instruction = document.getElementById('breathingInstruction');
+        
+        text.textContent = 'Ready';
+        instruction.textContent = 'Click Start to begin your breathing session';
+        circle.style.transform = 'scale(1)';
+        circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        circle.style.boxShadow = '0 20px 60px rgba(102,126,234,0.4)';
+        
+        document.getElementById('breathingBtn').style.display = 'inline-block';
+        document.getElementById('breathingBtn').innerHTML = '<i class="fas fa-play"></i> Start Session';
+        document.getElementById('resetBtn').style.display = 'none';
+    }
+    
+    // Add fade-in animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .resource-card {
+        background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
+        border-radius: 20px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        transition: all 0.3s;
+        border: 2px solid rgba(255,255,255,0.3);
+    }
+    
+    .resource-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    }
+    
+    .resource-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        color: white;
+        margin-bottom: 15px;
+    }
+    
+    .youtube-icon { background: linear-gradient(135deg, #FF0000 0%, #CC0000 100%); }
+    .spotify-icon { background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%); }
+    .meditation-icon { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .exercise-icon { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .article-icon { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .app-icon { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+    
+    .video-embed {
+        position: relative;
+        padding-bottom: 56.25%;
+        height: 0;
+        overflow: hidden;
+        border-radius: 15px;
+        margin-top: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .video-embed iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        border-radius: 15px;
+    }
+    
+    .playlist-embed {
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        margin-top: 15px;
+    }
+    
+    .tag {
+        display: inline-block;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-right: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .tag-breathing { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #2d3748; }
+    .tag-meditation { background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%); color: #2d3748; }
+    .tag-music { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #2d3748; }
+    .tag-exercise { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); color: #2d3748; }
+    .tag-sleep { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); color: #2d3748; }
+    
+    .external-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 25px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s;
+        margin-right: 10px;
+        margin-bottom: 10px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .external-link:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+    
+    .link-youtube {
+        background: linear-gradient(135deg, #FF0000 0%, #CC0000 100%);
+        color: white;
+    }
+    
+    .link-spotify {
+        background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%);
+        color: white;
+    }
+    
+    .link-article {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid;
+        border-image: var(--primary-gradient) 1;
+    }
+    
+    .section-header i {
+        font-size: 2rem;
+    }
+    
+    .crisis-banner {
+        background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 15px 40px rgba(238, 9, 121, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Crisis Support Banner -->
+<div class="crisis-banner">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-phone-volume fa-3x me-4"></i>
+        <div>
+            <h4 class="mb-2"><i class="fas fa-heart-pulse"></i> 24/7 Crisis Support</h4>
+            <p class="mb-2"><strong>US:</strong> 988 (Suicide & Crisis Lifeline) | <strong>Text:</strong> "HELLO" to 741741</p>
+            <p class="mb-0"><strong>International:</strong> <a href="https://findahelpline.com" target="_blank" style="color: white; text-decoration: underline;">findahelpline.com</a></p>
+        </div>
+    </div>
+</div>
+
+<!-- AI Recommendations -->
+<div class="content-card">
+    <div class="section-header">
+        <i class="fas fa-robot" style="background: var(--primary-gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+        <h2>Personalized AI Recommendations</h2>
+    </div>
+    
+    {% if recommendations %}
+        <div class="row">
+            {% for rec in recommendations %}
+            <div class="col-md-6 mb-3">
+                <div class="alert alert-info">
+                    <i class="fas fa-lightbulb"></i> {{ rec }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-info-circle"></i> Start logging emotions to receive personalized recommendations!
+        </div>
+    {% endif %}
+</div>
+
+<!-- Interactive Breathing Exercise -->
+<div class="content-card">
+    <div class="section-header">
+        <i class="fas fa-lungs" style="color: #4facfe;"></i>
+        <h2>🫁 Interactive Breathing Exercise</h2>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="resource-card text-center" style="padding: 40px;">
+                <h4 class="mb-4">Box Breathing Exercise</h4>
+                <p class="text-muted mb-4">Follow the circle and breathe along</p>
+                
+                <!-- Breathing Circle -->
+                <div style="position: relative; width: 250px; height: 250px; margin: 0 auto 30px;">
+                    <div id="breathingCircle" style="
+                        width: 250px;
+                        height: 250px;
+                        border-radius: 50%;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        transition: transform 4s ease-in-out;
+                        box-shadow: 0 20px 60px rgba(102,126,234,0.4);
+                    ">
+                        <h2 style="color: white; font-weight: 700; margin: 0;" id="breathingText">Ready</h2>
+                    </div>
+                </div>
+                
+                <h5 id="breathingInstruction" class="mb-4" style="min-height: 30px; color: #667eea; font-weight: 600;">
+                    Click Start to begin your breathing session
+                </h5>
+                
+                <div class="d-flex justify-content-center gap-3">
+                    <button class="btn btn-primary" id="breathingBtn" onclick="startBreathing()">
+                        <i class="fas fa-play"></i> Start Session
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="resetBreathing()" style="display: none;" id="resetBtn">
+                        <i class="fas fa-stop"></i> Stop
+                    </button>
+                </div>
+                
+                <div class="mt-4 p-3" style="background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%); border-radius: 15px;">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        Box breathing (4-4-4-4) helps reduce stress and anxiety by activating the parasympathetic nervous system
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Breathing Exercises -->
+<div class="content-card">
+    <div class="section-header">
+        <i class="fas fa-wind" style="color: #4facfe;"></i>
+        <h2>Breathing Exercises</h2>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="resource-card">
+                <div class="resource-icon breathing-icon meditation-icon">
+                    <i class="fab fa-youtube"></i>
+                </div>
+                <h5>5-Minute Box Breathing</h5>
+                <p class="text-muted">Perfect for stress relief and anxiety reduction</p>
+                <div class="mb-3">
+                    <span class="tag tag-breathing">Breathing</span>
+                    <span class="tag tag-meditation">Stress Relief</span>
+                </div>
+                <div class="video-embed">
+                    <iframe src="https://www.youtube.com/embed/tEmt1Znux58" allowfullscreen></iframe>
+                </div>
+                <div class="mt-3">
+                    <a href="https://www.youtube.com/watch?v=tEmt1Znux58" target="_blank" class="external-link link-youtube">
+                        <i class="fab fa-youtube"></i> Watch on YouTube
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="resource-card">
+                <div class="resource-icon breathing-icon meditation-icon">
+                    <i class="fab fa-youtube"></i>
+                </div>
+                <h5>4-7-8 Breathing Technique</h5>
+                <p class="text-muted">Dr. Andrew Weil's relaxation breathing exercise</p>
+                <div class="mb-3">
+                    <span class="tag tag-breathing">Breathing</span>
+                    <span class="tag tag-sleep">Better Sleep</span>
+                </div>
+                <div class="video-embed">
+                    <iframe src="https://www.youtube.com/embed/YRPh_GaiL8s" allowfullscreen></iframe>
+                </div>
+                <div class="mt-3">
+                    <a href="https://www.youtube.com/watch?v=YRPh_GaiL8s" target="_blank" class="external-link link-youtube">
+                        <i class="fab fa-youtube"></i> Watch on YouTube
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Meditation & Mindfulness -->
+<div class="content-card">
+    <div class="section-header">
+        <i class="fas fa-spa" style="color: #764ba2;"></i>
+        <h2>Guided Meditation</h2>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="resource-card">
+                <div class="resource-icon meditation-icon">
+                    <i class="fab fa-youtube"></i>
+                </div>
+                <h5>10-Minute Daily Meditation</h5>
+                <p class="text-muted">Headspace - Mindfulness meditation for beginners</p>
+                <div class="mb-3">
+                    <span class="tag tag-meditation">Meditation</span>
+                    <span class="tag tag-breathing">Mindfulness</span>
+                </div>
+                <div class="video-embed">
+                    <iframe src="https://www.youtube.com/embed/ZToicYcHIOU" allowfullscreen></iframe>
+                </div>
+                <div class="mt-3">
+                    <a href="https://www.youtube.com/watch?v=ZToicYcHIOU" target="_blank" class="external-link link-youtube">
+                        <i class="fab fa-youtube"></i> Watch on YouTube
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="resource-card">
+                <div class="resource-icon meditation-icon">
+                    <i class="fab fa-youtube"></i>
+                </div>
+                <h5>Anxiety Relief Meditation</h5>
+                <p class="text-muted">Calm your mind and reduce worry</p>
+                <div class="mb-3">
+                    <span class="tag tag-meditation">Meditation</span>
+                    <span class="tag tag-breathing">Anxiety Relief</span>
+                </div>
+                <div class="video-embed">
+                    <iframe src="https://www.youtube.com/embed/O-6f5wQXSu8" allowfullscreen></iframe>
+                </div>
+                <div class="mt-3">
+                    <a href="https://www.youtube.com/watch?v=O-6f5wQXSu8" target="_blank" class="external-link link-youtube">
+                        <i class="fab fa-youtube"></i> Watch on YouTube
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Calming Music & Playlists -->
+<div class="content-card">
+    <div class="section-header">
+        <i class="fas fa-music" style="color: #1DB954;"></i>
+        <h2>Calming Music & Playlists</h2>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="resource-card">
+                <div class="resource-icon spotify-icon">
+                    <i class="fab fa-spotify"></i>
+                </div>
+                <h5>Peaceful Piano</h5>
+                <p class="text-muted">Relax and indulge with beautiful piano pieces</p>
+                <div class="mb-3">
+                    <span class="tag tag-music">Music</span>
+                    <span class="tag tag-meditation">Relaxation</span>
+                </div>
+                <iframe class="playlist-embed" src="https://open.spotify.com/embed/playlist/37i9dQZF1DX4sWSpwq3LiO" width="100%" height="352" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+                <div class="mt-3">
+                    <a href="https://open.spotify.com/playlist/37i9dQZF1DX4sWSpwq3LiO" target="_blank" class="external-link link-spotify">
+                        <i class="fab fa-spotify"></i> Open in Spotify
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="resource-card">
+                <div class="resource-icon spotify-icon">
+                    <i class="fab fa-spotify"></i>
+                </div>
+                <h5>Deep Focus</h5>
+                <p class="text-muted">Keep calm and focus with ambient sounds</p>
+                <div class="mb-3">
+                    <span class="tag tag-music">Music</span>
+                    <span class="tag tag-meditation">Focus</span>
+                </div>
+                <iframe class="playlist-embed" src="https://open.spotify.com/embed/playlist/37i9dQZF1DWZeKCadgRdKQ" width="100%" height="352" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+                <div class="mt-3">
+                    <a href="https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ" target="_blank" class="external-link link-spotify">
+                        <i class="fab fa-spotify"></i> Open in Spotify
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="resource-card">
+                <div class="resource-icon spotify-icon">
+                    <i class="fab fa-spotify"></i>
+                </div>
+                <h5>Sleep</h5>
+                <p class="text-muted">Gentle ambient piano to help you fall asleep</p>
+                <div class="mb-3">
+                    <span class="tag tag-music">Music</span>
+                    <span class="tag tag-sleep">Sleep</span>
+                </div>
+                <iframe class="playlist-embed" src="https://open.spotify.com/embed/playlist/37i9dQZF1DWZd79rJ6a7lp" width="100%" height="352" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+                <div class="mt-3">
+                    <a href="https://open.spotify.com/playlist/37i9dQZF1DWZd79rJ6a7lp" target="_blank" class="external-link link-spotify">
+                        <i class="fab fa-spotify"></i> Open in Spotify
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="resource-card">
+                <div class="resource-icon spotify-icon">
+                    <i class="fab fa-spotify"></i>
+                </div>
+                <h5>Mood Booster</h5>
+                <p class="text-muted">Get happy with today's dose of feel-good songs</p>
+                <div class="mb-3">
+                    <span class="tag tag-music">Music</span>
+                    <span class="tag tag-exercise">Energy</span>
+                </div>
+                <iframe class="playlist-embed" src="https://open.spotify.com/embed/playlist/37i9dQZF1DX3rxVfibe1L0" width="100%" height="352" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+                <div class="mt-3">
+                    <a href="https://open.spotify.com/playlist/37i9dQZF1DX3rxVfibe1L0" target="_blank" class="external-link link-spotify">
+                        <i class="fab fa-spotify"></i> Open in Spotify
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Exercise Videos -->
+<div class="content-card">
+    <div class="section-header">
+        <i class="fas fa-dumbbell" style="color: #f5576c;"></i>
+        <h2>Movement & Exercise</h2>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="resource-card">
+                <div class="resource-icon exercise-icon">
+                    <i class="fab fa-youtube"></i>
+                </div>
+                <h5>Yoga for Stress Relief</h5>
+                <p class="text-muted">20-minute gentle yoga flow</p>
+                <div class="mb-3">
+                    <span class="tag tag-exercise">Yoga</span>
+                    <span class="tag tag-breathing">Stress Relief</span>
+                </div>
+                <div class="video-embed">
+                    <iframe src="https://www.youtube.com/embed/COp7BR_Dvps" allowfullscreen></iframe>
+                </div>
+                <div class="mt-3">
+                    <a href="https://www.youtube.com/watch?v=COp7BR_Dvps" target="_blank" class="external-link link-youtube">
+                        <i class="fab fa-youtube"></i> Watch on YouTube
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="resource-card">
+                <div class="resource-icon exercise-icon">
+                    <i class="fab fa-youtube"></i>
+                </div>
+                <h5>Morning Stretching Routine</h5>
+                <p class="text-muted">10-minute energizing stretch</p>
+                <div class="mb-3">
+                    <span class="tag tag-exercise">Stretching</span>
+                    <span class="tag tag-breathing">Morning Routine</span>
+                </div>
+                <div class="video-embed">
+                    <iframe src="https://www.youtube.com/embed/g_tea8ZNk5A" allowfullscreen></iframe>
+                </div>
+                <div class="mt-3">
+                    <a href="https://www.youtube.com/watch?v=g_tea8ZNk5A" target="_blank" class="external-link link-youtube">
+                        <i class="fab fa-youtube"></i> Watch on YouTube
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mental Health Apps & Resources -->
+<div class="content-card">
+    <div class="section-header">
+        <i class="fas fa-mobile-alt" style="color: #38f9d7;"></i>
+        <h2>Mental Health Apps & Resources</h2>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <div class="resource-card">
+                <div class="resource-icon app-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h5>Headspace</h5>
+                <p class="text-muted">Meditation and mindfulness app</p>
+                <a href="https://www.headspace.com" target="_blank" class="external-link link-article">
+                    <i class="fas fa-external-link-alt"></i> Visit Website
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="resource-card">
+                <div class="resource-icon app-icon">
+                    <i class="fas fa-moon"></i>
+                </div>
+                <h5>Calm</h5>
+                <p class="text-muted">Sleep stories and meditation</p>
+                <a href="https://www.calm.com" target="_blank" class="external-link link-article">
+                    <i class="fas fa-external-link-alt"></i> Visit Website
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="resource-card">
+                <div class="resource-icon app-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h5>BetterHelp</h5>
+                <p class="text-muted">Online therapy and counseling</p>
+                <a href="https://www.betterhelp.com" target="_blank" class="external-link link-article">
+                    <i class="fas fa-external-link-alt"></i> Visit Website
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="resource-card">
+                <div class="resource-icon app-icon">
+                    <i class="fas fa-coffee"></i>
+                </div>
+                <h5>7 Cups</h5>
+                <p class="text-muted">Free emotional support</p>
+                <a href="https://www.7cups.com" target="_blank" class="external-link link-article">
+                    <i class="fas fa-external-link-alt"></i> Visit Website
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="resource-card">
+                <div class="resource-icon app-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h5>Moodfit</h5>
+                <p class="text-muted">Mood tracking and CBT tools</p>
+                <a href="https://www.getmoodfit.com" target="_blank" class="external-link link-article">
+                    <i class="fas fa-external-link-alt"></i> Visit Website
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="resource-card">
+                <div class="resource-icon app-icon">
+                    <i class="fas fa-smile"></i>
+                </div>
+                <h5>Sanvello</h5>
+                <p class="text-muted">Anxiety & depression support</p>
+                <a href="https://www.sanvello.com" target="_blank" class="external-link link-article">
+                    <i class="fas fa-external-link-alt"></i> Visit Website
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Evidence-Based Articles -->
+<div class="content-card">
+    <div class="section-header">
+        <i class="fas fa-book-open" style="color: #4facfe;"></i>
+        <h2>Evidence-Based Articles</h2>
+    </div>
+    
+    <div class="list-group">
+        <a href="https://www.apa.org/topics/mindfulness/meditation" target="_blank" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1"><i class="fas fa-university text-primary"></i> APA: Mindfulness Meditation</h6>
+                    <p class="mb-1 text-muted">American Psychological Association research on meditation benefits</p>
+                </div>
+                <i class="fas fa-external-link-alt text-muted"></i>
+            </div>
+        </a>
+        
+        <a href="https://www.health.harvard.edu/mind-and-mood/relaxation-techniques-breath-control-helps-quell-errant-stress-response" target="_blank" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1"><i class="fas fa-h-square text-danger"></i> Harvard: Breathing Techniques</h6>
+                    <p class="mb-1 text-muted">Harvard Medical School on breath control for stress</p>
+                </div>
+                <i class="fas fa-external-link-alt text-muted"></i>
+            </div>
+        </a>
+        
+        <a href="https://www.nimh.nih.gov/health/topics/caring-for-your-mental-health" target="_blank" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1"><i class="fas fa-heartbeat text-success"></i> NIMH: Mental Health Care</h6>
+                    <p class="mb-1 text-muted">National Institute of Mental Health guidelines</p>
+                </div>
+                <i class="fas fa-external-link-alt text-muted"></i>
+            </div>
+        </a>
+        
+        <a href="https://www.psychologytoday.com/us/basics/emotional-intelligence" target="_blank" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1"><i class="fas fa-brain text-info"></i> Psychology Today: Emotional Intelligence</h6>
+                    <p class="mb-1 text-muted">Understanding and managing your emotions</p>
+                </div>
+                <i class="fas fa-external-link-alt text-muted"></i>
+            </div>
+        </a>
+    </div>
+</div>
+
+{% endblock %}

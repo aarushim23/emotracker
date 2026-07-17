@@ -1,0 +1,4 @@
+[install]
+# Use CPU-only PyTorch to reduce install size
+[install.torch]
+extra-index-url = ["https://download.pytorch.org/whl/cpu"]

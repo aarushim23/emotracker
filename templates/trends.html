@@ -1,0 +1,638 @@
+{% extends "base.html" %}
+
+{% block title %}AI Insights - EmoTrack{% endblock %}
+
+{% block extra_css %}
+<style>
+    .insight-card {
+        background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
+        border-radius: 20px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border-left: 5px solid;
+        transition: all 0.3s;
+        animation: slideIn 0.5s ease-out;
+    }
+    
+    .insight-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    .insight-positive { border-left-color: #10b981; }
+    .insight-negative { border-left-color: #ef4444; }
+    .insight-neutral { border-left-color: #6366f1; }
+    .insight-warning { border-left-color: #f59e0b; }
+    
+    .trend-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s;
+        height: 100%;
+        border: 2px solid transparent;
+    }
+    
+    .trend-card:hover {
+        border-color: #667eea;
+        box-shadow: 0 10px 25px rgba(102,126,234,0.2);
+        transform: translateY(-3px);
+    }
+    
+    .trend-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        color: white;
+        margin-bottom: 15px;
+    }
+    
+    .trend-rising { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+    .trend-falling { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .trend-stable { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
+    
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+        box-shadow: 0 15px 40px rgba(102,126,234,0.3);
+        transition: all 0.3s;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 50px rgba(102,126,234,0.4);
+    }
+    
+    .metric-value {
+        font-size: 3rem;
+        font-weight: 700;
+        margin: 15px 0;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .progress-bar-animated {
+        animation: progress-animation 1.5s ease-out;
+    }
+    
+    @keyframes progress-animation {
+        from { width: 0; }
+        to { width: var(--target-width); }
+    }
+    
+    .emotion-radar {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .ai-suggestion {
+        background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);
+        border-left: 4px solid #667eea;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        transition: all 0.3s;
+    }
+    
+    .ai-suggestion:hover {
+        background: linear-gradient(135deg, rgba(102,126,234,0.15) 0%, rgba(118,75,162,0.15) 100%);
+        transform: translateX(5px);
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-left: 40px;
+        margin-bottom: 25px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: -25px;
+        width: 2px;
+        background: linear-gradient(to bottom, #667eea, transparent);
+    }
+    
+    .timeline-dot {
+        position: absolute;
+        left: 0;
+        top: 5px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid #667eea;
+        box-shadow: 0 0 0 4px rgba(102,126,234,0.2);
+    }
+    
+    .progress-joy { background: #f59e0b !important; }
+    .progress-sadness { background: #4facfe !important; }
+    .progress-anger { background: #ef4444 !important; }
+    .progress-fear { background: #6366f1 !important; }
+    .progress-love { background: #ec4899 !important; }
+    .progress-surprise { background: #8b5cf6 !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Overview Metrics -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="metric-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <i class="fas fa-brain fa-2x mb-2"></i>
+            <div class="metric-value" id="totalEntries">0</div>
+            <p class="mb-0">Total Entries</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <i class="fas fa-heart-pulse fa-2x mb-2"></i>
+            <div class="metric-value" id="moodStability">-</div>
+            <p class="mb-0">Mood Stability</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <i class="fas fa-calendar-week fa-2x mb-2"></i>
+            <div class="metric-value" id="daysTracked">0</div>
+            <p class="mb-0">Days Tracked</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="metric-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+            <i class="fas fa-smile fa-2x mb-2"></i>
+            <div class="metric-value" id="dominantEmotion">-</div>
+            <p class="mb-0">Top Emotion</p>
+        </div>
+    </div>
+</div>
+
+<!-- AI Insights -->
+<div class="content-card">
+    <div class="section-header" style="border-image: var(--primary-gradient) 1;">
+        <i class="fas fa-robot" style="background: var(--primary-gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+        <h2>🤖 AI-Powered Insights</h2>
+    </div>
+    
+    <p class="text-muted mb-4">
+        <i class="fas fa-info-circle"></i> 
+        Our AI analyzes your emotional patterns and provides personalized insights
+    </p>
+    
+    <div id="insightsContainer">
+        {% if insights %}
+            {% for insight in insights %}
+            <div class="insight-card {% if 'stable' in insight.lower() or 'joy' in insight.lower() or 'improved' in insight.lower() %}insight-positive{% elif 'anger' in insight.lower() or 'sadness' in insight.lower() or 'fear' in insight.lower() %}insight-negative{% elif 'fluctuat' in insight.lower() %}insight-warning{% else %}insight-neutral{% endif %}">
+                <div class="d-flex align-items-start">
+                    <div class="me-3">
+                        {% if 'stable' in insight.lower() or 'joy' in insight.lower() %}
+                        <div class="trend-icon trend-falling">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        {% elif 'anger' in insight.lower() or 'fear' in insight.lower() %}
+                        <div class="trend-icon trend-rising">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        {% else %}
+                        <div class="trend-icon trend-stable">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-2">
+                            {% if 'stable' in insight.lower() %}
+                            🌟 Emotional Stability
+                            {% elif 'anger' in insight.lower() %}
+                            🔴 Anger Alert
+                            {% elif 'sadness' in insight.lower() %}
+                            💙 Sadness Trend
+                            {% elif 'joy' in insight.lower() %}
+                            ✨ Joy Pattern
+                            {% elif 'fear' in insight.lower() %}
+                            😰 Anxiety Notice
+                            {% else %}
+                            📊 Pattern Analysis
+                            {% endif %}
+                        </h5>
+                        <p class="mb-0">{{ insight }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="ai-suggestion">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-lightbulb fa-2x me-3" style="color: #667eea;"></i>
+                    <div>
+                        <h5 class="mb-1">Start Your Journey</h5>
+                        <p class="mb-0 text-muted">
+                            Log at least 5 emotions over a few days to receive AI-powered insights about your emotional patterns
+                        </p>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 24-Hour Trends -->
+<div class="content-card">
+    <div class="section-header" style="border-image: var(--warning-gradient) 1;">
+        <i class="fas fa-clock" style="background: var(--warning-gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+        <h2>⏰ Last 24 Hours Analysis</h2>
+    </div>
+    
+    {% if trends_24h %}
+        <div class="row">
+            {% for emotion, data in trends_24h.items() %}
+            <div class="col-md-4 mb-3">
+                <div class="trend-card">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="trend-icon {% if data.direction == 'rising' %}trend-rising{% elif data.direction == 'falling' %}trend-falling{% else %}trend-stable{% endif %}">
+                            {% if data.direction == 'rising' %}
+                            <i class="fas fa-arrow-trend-up"></i>
+                            {% elif data.direction == 'falling' %}
+                            <i class="fas fa-arrow-trend-down"></i>
+                            {% else %}
+                            <i class="fas fa-minus"></i>
+                            {% endif %}
+                        </div>
+                        <div class="ms-3">
+                            <h5 class="mb-0">{{ emotion.capitalize() }}</h5>
+                            <small class="text-muted">{{ data.direction.capitalize() }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Change</span>
+                            {% if data.change_percent > 5 %}
+                                <strong class="text-danger">
+                            {% elif data.change_percent < -5 %}
+                                <strong class="text-success">
+                            {% else %}
+                                <strong class="text-secondary">
+                            {% endif %}
+                                {{ "%.1f"|format(data.change_percent) }}%
+                            </strong>
+                        </div>
+                        <div class="progress" style="height: 8px; border-radius: 10px;">
+                            {% if data.change_percent > 5 %}
+                                <div class="progress-bar bg-danger" data-width="{{ (data.change_percent|abs / 100 * 100)|int }}" style="border-radius: 10px;"></div>
+                            {% elif data.change_percent < -5 %}
+                                <div class="progress-bar bg-success" data-width="{{ (data.change_percent|abs / 100 * 100)|int }}" style="border-radius: 10px;"></div>
+                            {% else %}
+                                <div class="progress-bar bg-secondary" data-width="{{ (data.change_percent|abs / 100 * 100)|int }}" style="border-radius: 10px;"></div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Current Level</span>
+                        <strong>{{ "%.2f"|format(data.current_avg) }}</strong>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> 
+            Not enough data for 24-hour trends. Keep logging emotions throughout the day!
+        </div>
+    {% endif %}
+</div>
+
+<!-- 7-Day Trends -->
+<div class="content-card">
+    <div class="section-header" style="border-image: var(--success-gradient) 1;">
+        <i class="fas fa-calendar-week" style="background: var(--success-gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+        <h2>📅 Weekly Emotional Trends</h2>
+    </div>
+    
+    {% if trends_7d %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Emotion</th>
+                        <th>Trend</th>
+                        <th>Change</th>
+                        <th>Current Avg</th>
+                        <th>Progress</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emotion, data in trends_7d.items() %}
+                    <tr>
+                        <td>
+                            <span class="emotion-badge emotion-{{ emotion }}">{{ emotion.upper() }}</span>
+                        </td>
+                        <td>
+                            {% if data.direction == 'rising' %}
+                                <span class="badge bg-danger"><i class="fas fa-arrow-up"></i> Rising</span>
+                            {% elif data.direction == 'falling' %}
+                                <span class="badge bg-success"><i class="fas fa-arrow-down"></i> Falling</span>
+                            {% else %}
+                                <span class="badge bg-secondary"><i class="fas fa-minus"></i> Stable</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if data.change_percent > 5 %}
+                                <strong class="text-danger">
+                            {% elif data.change_percent < -5 %}
+                                <strong class="text-success">
+                            {% else %}
+                                <strong class="text-secondary">
+                            {% endif %}
+                                {{ "%.1f"|format(data.change_percent) }}%
+                            </strong>
+                        </td>
+                        <td>{{ "%.3f"|format(data.current_avg) }}</td>
+                        <td>
+                            <div class="progress" style="height: 10px; width: 200px;">
+                                <div class="progress-bar progress-{{ emotion }}" data-width="{{ (data.current_avg * 100)|int }}"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> 
+            Not enough data for weekly trends. Log emotions for 7 days to see patterns!
+        </div>
+    {% endif %}
+</div>
+
+<!-- AI Recommendations -->
+<div class="content-card">
+    <div class="section-header" style="border-image: var(--info-gradient) 1;">
+        <i class="fas fa-magic" style="background: var(--info-gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+        <h2>💡 AI Recommendations</h2>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <div class="ai-suggestion">
+                <h6><i class="fas fa-book-open"></i> Journal Daily</h6>
+                <p class="mb-0 text-muted">
+                    Studies show that daily journaling for just 5 minutes improves emotional awareness by 30%
+                </p>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="ai-suggestion">
+                <h6><i class="fas fa-dumbbell"></i> Physical Activity</h6>
+                <p class="mb-0 text-muted">
+                    Even 15 minutes of exercise can significantly boost your mood and reduce stress
+                </p>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="ai-suggestion">
+                <h6><i class="fas fa-bed"></i> Sleep Hygiene</h6>
+                <p class="mb-0 text-muted">
+                    Aim for 7-8 hours of quality sleep - it's foundational for emotional regulation
+                </p>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="ai-suggestion">
+                <h6><i class="fas fa-users"></i> Social Connection</h6>
+                <p class="mb-0 text-muted">
+                    Regular social interaction is crucial for mental wellbeing - reach out to friends
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="text-center mt-4">
+        <a href="/recommendations" class="btn btn-primary">
+            <i class="fas fa-heart"></i> View Full Wellness Resources
+        </a>
+    </div>
+</div>
+
+<!-- Emotional Balance Radar -->
+<div class="content-card">
+    <div class="section-header" style="border-image: var(--primary-gradient) 1;">
+        <i class="fas fa-chart-pie" style="background: var(--primary-gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+        <h2>🎯 Emotional Balance Analysis</h2>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="emotion-radar">
+                <canvas id="balanceChart" height="100"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div id="balanceInterpretation" class="mt-3"></div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Set progress bar widths using JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.progress-bar[data-width]').forEach(function(bar) {
+            bar.style.width = bar.getAttribute('data-width') + '%';
+        });
+    });
+
+    // Load timeline data for metrics
+    async function loadMetrics() {
+        try {
+            const response = await fetch('/timeline/data');
+            const data = await response.json();
+            
+            // Update metrics
+            document.getElementById('totalEntries').textContent = data.logs.length;
+            document.getElementById('moodStability').textContent = data.stability;
+            
+            // Calculate days tracked
+            if (data.logs.length > 0) {
+                const firstDate = new Date(data.logs[0].timestamp);
+                const lastDate = new Date(data.logs[data.logs.length - 1].timestamp);
+                const daysDiff = Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24));
+                document.getElementById('daysTracked').textContent = daysDiff;
+                
+                // Find dominant emotion
+                const emotions = data.logs.map(log => log.emotion);
+                const emotionCounts = {};
+                emotions.forEach(e => emotionCounts[e] = (emotionCounts[e] || 0) + 1);
+                const dominant = Object.keys(emotionCounts).reduce((a, b) => 
+                    emotionCounts[a] > emotionCounts[b] ? a : b
+                );
+                document.getElementById('dominantEmotion').textContent = 
+                    dominant.charAt(0).toUpperCase() + dominant.slice(1);
+            }
+            
+            // Create balance chart
+            createBalanceChart(data.logs);
+            
+        } catch (error) {
+            console.error('Error loading metrics:', error);
+        }
+    }
+    
+    function createBalanceChart(logs) {
+        const ctx = document.getElementById('balanceChart');
+        
+        if (logs.length === 0) {
+            ctx.parentElement.innerHTML = '<p class="text-center text-muted">No data available yet</p>';
+            return;
+        }
+        
+        // Calculate average probabilities
+        const emotionTotals = {
+            'sadness': 0, 'joy': 0, 'love': 0,
+            'anger': 0, 'fear': 0, 'surprise': 0
+        };
+        
+        logs.forEach(log => {
+            Object.keys(log.probs).forEach(emotion => {
+                emotionTotals[emotion] += log.probs[emotion];
+            });
+        });
+        
+        const emotionAverages = {};
+        Object.keys(emotionTotals).forEach(emotion => {
+            emotionAverages[emotion] = (emotionTotals[emotion] / logs.length) * 100;
+        });
+        
+        // Create chart
+        new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: Object.keys(emotionAverages).map(e => 
+                    e.charAt(0).toUpperCase() + e.slice(1)
+                ),
+                datasets: [{
+                    label: 'Emotional Balance',
+                    data: Object.values(emotionAverages),
+                    backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                    borderColor: '#667eea',
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#667eea',
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            stepSize: 20,
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        padding: 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.r.toFixed(1) + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Generate interpretation
+        generateInterpretation(emotionAverages);
+    }
+    
+    function generateInterpretation(emotionAverages) {
+        const div = document.getElementById('balanceInterpretation');
+        
+        // Find dominant emotions
+        const sorted = Object.entries(emotionAverages).sort((a, b) => b[1] - a[1]);
+        const dominant = sorted[0];
+        const secondary = sorted[1];
+        
+        let html = '<h5 class="mb-3">📊 Your Profile</h5>';
+        html += `<div class="mb-3">
+            <strong>Primary:</strong><br>
+            <span class="emotion-badge emotion-${dominant[0]}">${dominant[0].toUpperCase()}</span>
+            <div class="mt-2">${dominant[1].toFixed(1)}%</div>
+        </div>`;
+        
+        html += `<div class="mb-3">
+            <strong>Secondary:</strong><br>
+            <span class="emotion-badge emotion-${secondary[0]}">${secondary[0].toUpperCase()}</span>
+            <div class="mt-2">${secondary[1].toFixed(1)}%</div>
+        </div>`;
+        
+        // Calculate balance
+        const values = Object.values(emotionAverages);
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+        
+        html += '<hr>';
+        
+        if (variance < 50) {
+            html += '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Well-balanced emotions!</div>';
+        } else if (variance > 200) {
+            html += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> High emotional variance detected</div>';
+        } else {
+            html += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> Moderate emotional balance</div>';
+        }
+        
+        div.innerHTML = html;
+    }
+    
+    // Load metrics on page load
+    loadMetrics();
+</script>
+{% endblock %}

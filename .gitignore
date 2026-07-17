@@ -1,0 +1,46 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Training data (not needed for deployment)
+emotions.csv
+tweet.csv
+tweet.xlsx
+
+# Training scripts and outputs
+train_model.py
+fix_logs.py
+gr.py
+training_plots/
+
+# Document files
+*.docx
+
+# Backup logs
+user_logs_backup_*.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Model files we don't need (keeping only full_model.pt)
+model/best_model.pt
+
+# Docker files (not needed for Streamlit deployment)
+Dockerfile
+
+# Flask templates and static (not needed for Streamlit)
+# Keeping them for local Flask usage

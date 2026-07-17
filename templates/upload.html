@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Tweets - EmoTrack{% endblock %}
+
+{% block content %}
+<div class="content-card">
+    <h2><i class="fas fa-upload"></i> Upload Tweet History</h2>
+    <p class="text-muted">Analyze your Twitter/X history to understand your emotional patterns over time</p>
+    
+    <div class="row mt-4">
+        <div class="col-md-8 mx-auto">
+            <!-- File Upload -->
+            <div class="mb-4">
+                <label for="tweetFile" class="form-label">
+                    <strong>Select your tweet CSV file</strong>
+                </label>
+                <input 
+                    type="file" 
+                    class="form-control" 
+                    id="tweetFile" 
+                    accept=".csv"
+                >
+                <small class="form-text text-muted">
+                    The CSV should have a "text" column containing your tweets
+                </small>
+            </div>
+            
+            <button onclick="uploadTweets()" class="btn btn-primary w-100">
+                <i class="fas fa-cloud-upload-alt"></i> Upload & Analyze
+            </button>
+            
+            <!-- Progress -->
+            <div id="uploadProgress" class="mt-4" style="display: none;">
+                <div class="text-center">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Processing...</span>
+                    </div>
+                    <p class="text-muted">Analyzing your tweets... This may take a moment.</p>
+                </div>
+            </div>
+            
+            <!-- Results -->
+            <div id="uploadResults" class="mt-4" style="display: none;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Instructions -->
+<div class="content-card">
+    <h4><i class="fas fa-question-circle"></i> How to Get Your Twitter Data</h4>
+    
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <ol class="list-group list-group-numbered">
+                <li class="list-group-item">
+                    <strong>Request Your Data from Twitter/X</strong>
+                    <p class="mb-0 text-muted">Go to Settings → Your Account → Download an archive of your data</p>
+                </li>
+                <li class="list-group-item">
+                    <strong>Wait for Email</strong>
+                    <p class="mb-0 text-muted">Twitter will send you a download link (usually within 24 hours)</p>
+                </li>
+                <li class="list-group-item">
+                    <strong>Extract the Archive</strong>
+                    <p class="mb-0 text-muted">Unzip the downloaded file and locate the tweets.csv file</p>
+                </li>
+                <li class="list-group-item">
+                    <strong>Upload Here</strong>
+                    <p class="mb-0 text-muted">Upload the CSV file using the form above</p>
+                </li>
+            </ol>
+        </div>
+    </div>
+    
+    <div class="alert alert-info mt-4">
+        <i class="fas fa-info-circle"></i> 
+        <strong>Privacy Note:</strong> Your data is processed locally and stored only on this device. 
+        We analyze up to 100 tweets at a time for performance.
+    </div>
+</div>
+
+<!-- Sample CSV Format -->
+<div class="content-card">
+    <h4><i class="fas fa-file-csv"></i> Expected CSV Format</h4>
+    
+    <p class="text-muted">Your CSV should look like this:</p>
+    
+    <pre class="bg-light p-3 rounded"><code>text
+"Just had the best coffee of my life! ☕"
+"Feeling overwhelmed with work today..."
+"Can't believe how beautiful the sunset is 🌅"
+"So frustrated with customer service 😡"
+"Excited for the weekend!"</code></pre>
+    
+    <div class="alert alert-warning mt-3">
+        <i class="fas fa-exclamation-triangle"></i> 
+        Make sure your CSV has a column named <code>text</code> (lowercase)
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function uploadTweets() {
+        const fileInput = document.getElementById('tweetFile');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            alert('Please select a CSV file first!');
+            return;
+        }
+        
+        if (!file.name.endsWith('.csv')) {
+            alert('Please upload a CSV file!');
+            return;
+        }
+        
+        // Show progress
+        document.getElementById('uploadProgress').style.display = 'block';
+        document.getElementById('uploadResults').style.display = 'none';
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const response = await fetch('/upload/tweets', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+            
+            showSuccess(data.processed, data.message);
+            
+        } catch (error) {
+            showError('Error uploading file: ' + error);
+        } finally {
+            document.getElementById('uploadProgress').style.display = 'none';
+        }
+    }
+    
+    function showSuccess(count, message) {
+        const resultsDiv = document.getElementById('uploadResults');
+        
+        resultsDiv.innerHTML = `
+            <div class="alert alert-success">
+                <h5><i class="fas fa-check-circle"></i> Upload Successful!</h5>
+                <p class="mb-2">${message}</p>
+                <hr>
+                <p class="mb-0">
+                    <strong>${count} tweets</strong> have been added to your emotional timeline.
+                    <a href="/timeline" class="alert-link">View Timeline →</a>
+                </p>
+            </div>
+            
+            <div class="text-center mt-3">
+                <a href="/timeline" class="btn btn-primary me-2">
+                    <i class="fas fa-chart-line"></i> View Timeline
+                </a>
+                <a href="/trends" class="btn btn-outline-primary">
+                    <i class="fas fa-lightbulb"></i> See Insights
+                </a>
+            </div>
+        `;
+        
+        resultsDiv.style.display = 'block';
+        resultsDiv.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function showError(errorMsg) {
+        const resultsDiv = document.getElementById('uploadResults');
+        
+        resultsDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <h5><i class="fas fa-exclamation-circle"></i> Upload Failed</h5>
+                <p class="mb-0">${errorMsg}</p>
+            </div>
+            
+            <div class="alert alert-info mt-3">
+                <strong>Common Issues:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Make sure your CSV has a column named "text"</li>
+                    <li>Check that the file is properly formatted</li>
+                    <li>Ensure tweets are not empty</li>
+                </ul>
+            </div>
+        `;
+        
+        resultsDiv.style.display = 'block';
+    }
+    
+    // Drag and drop support
+    const fileInput = document.getElementById('tweetFile');
+    const dropZone = fileInput.parentElement;
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+            dropZone.classList.add('border-primary');
+        }, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+            dropZone.classList.remove('border-primary');
+        }, false);
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        fileInput.files = files;
+    }, false);
+</script>
+{% endblock %}

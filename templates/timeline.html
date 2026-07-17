@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Timeline - EmoTrack{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="content-card text-center">
+            <i class="fas fa-database fa-2x text-primary mb-2"></i>
+            <h3>{{ log_count }}</h3>
+            <p class="text-muted mb-0">Total Entries</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="content-card text-center">
+            <i class="fas fa-balance-scale fa-2x text-success mb-2"></i>
+            <h3 id="stabilityScore">{{ stability_score }}</h3>
+            <p class="text-muted mb-0">Mood Stability</p>
+            <small class="text-muted">(0 = volatile, 1 = stable)</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="content-card text-center">
+            <i class="fas fa-clock fa-2x text-info mb-2"></i>
+            <h3 id="daysCounted">-</h3>
+            <p class="text-muted mb-0">Days Tracked</p>
+        </div>
+    </div>
+</div>
+
+<!-- Timeline Chart -->
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4><i class="fas fa-chart-line"></i> Emotional Timeline</h4>
+        <button onclick="clearAllData()" class="btn btn-outline-danger btn-sm">
+            <i class="fas fa-trash"></i> Clear History
+        </button>
+    </div>
+    <canvas id="timelineChart" height="100"></canvas>
+</div>
+
+<!-- Emotion Distribution -->
+<div class="content-card">
+    <h4><i class="fas fa-pie-chart"></i> Emotion Distribution</h4>
+    <div class="row">
+        <div class="col-md-6">
+            <canvas id="distributionChart"></canvas>
+        </div>
+        <div class="col-md-6">
+            <h6>Legend</h6>
+            <div id="emotionLegend"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Entries -->
+<div class="content-card">
+    <h4><i class="fas fa-history"></i> Recent Entries</h4>
+    <div id="recentEntries" class="mt-3"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const emotionColors = {
+        'sadness': '#3b82f6',
+        'joy': '#f59e0b',
+        'love': '#ec4899',
+        'anger': '#ef4444',
+        'fear': '#6366f1',
+        'surprise': '#8b5cf6'
+    };
+    
+    let timelineData = [];
+    
+    async function loadTimelineData() {
+        try {
+            const response = await fetch('/timeline/data');
+            const data = await response.json();
+            
+            timelineData = data.logs;
+            
+            // Update stats
+            document.getElementById('stabilityScore').textContent = data.stability;
+            
+            if (timelineData.length > 0) {
+                const firstDate = new Date(timelineData[0].timestamp);
+                const lastDate = new Date(timelineData[timelineData.length - 1].timestamp);
+                const daysDiff = Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24));
+                document.getElementById('daysCounted').textContent = daysDiff;
+            }
+            
+            // Create charts
+            createTimelineChart();
+            createDistributionChart();
+            displayRecentEntries();
+            
+        } catch (error) {
+            console.error('Error loading timeline:', error);
+        }
+    }
+    
+    function createTimelineChart() {
+        const ctx = document.getElementById('timelineChart');
+        
+        if (timelineData.length === 0) {
+            ctx.parentElement.innerHTML = '<p class="text-center text-muted">No data yet. Start logging emotions!</p>';
+            return;
+        }
+        
+        const labels = timelineData.map(log => {
+            const date = new Date(log.timestamp);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        });
+        
+        const emotionToNumber = {
+            'sadness': 0,
+            'joy': 1,
+            'love': 2,
+            'anger': 3,
+            'fear': 4,
+            'surprise': 5
+        };
+        
+        const emotionValues = timelineData.map(log => emotionToNumber[log.emotion]);
+        const colors = timelineData.map(log => emotionColors[log.emotion]);
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Emotions Over Time',
+                    data: emotionValues,
+                    borderColor: '#6366f1',
+                    backgroundColor: colors,
+                    pointBackgroundColor: colors,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const emotionNames = ['Sadness', 'Joy', 'Love', 'Anger', 'Fear', 'Surprise'];
+                                return emotionNames[context.parsed.y];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                const emotions = ['Sadness', 'Joy', 'Love', 'Anger', 'Fear', 'Surprise'];
+                                return emotions[value];
+                            },
+                            stepSize: 1
+                        },
+                        min: 0,
+                        max: 5
+                    }
+                }
+            }
+        });
+    }
+    
+    function createDistributionChart() {
+        const ctx = document.getElementById('distributionChart');
+        
+        if (timelineData.length === 0) {
+            return;
+        }
+        
+        // Count emotions
+        const emotionCounts = {};
+        timelineData.forEach(log => {
+            emotionCounts[log.emotion] = (emotionCounts[log.emotion] || 0) + 1;
+        });
+        
+        const labels = Object.keys(emotionCounts);
+        const values = Object.values(emotionCounts);
+        const colors = labels.map(e => emotionColors[e]);
+        
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels.map(e => e.charAt(0).toUpperCase() + e.slice(1)),
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        
+        // Create legend
+        const legendDiv = document.getElementById('emotionLegend');
+        let legendHTML = '';
+        labels.forEach((emotion, idx) => {
+            const percentage = ((values[idx] / timelineData.length) * 100).toFixed(1);
+            legendHTML += `
+                <div class="d-flex align-items-center mb-2">
+                    <div style="width: 20px; height: 20px; background: ${colors[idx]}; border-radius: 4px; margin-right: 10px;"></div>
+                    <span><strong>${emotion.charAt(0).toUpperCase() + emotion.slice(1)}:</strong> ${values[idx]} (${percentage}%)</span>
+                </div>
+            `;
+        });
+        legendDiv.innerHTML = legendHTML;
+    }
+    
+    function displayRecentEntries() {
+        const entriesDiv = document.getElementById('recentEntries');
+        
+        if (timelineData.length === 0) {
+            entriesDiv.innerHTML = '<p class="text-center text-muted">No entries yet.</p>';
+            return;
+        }
+        
+        const recent = timelineData.slice(-10).reverse();
+        
+        let html = '<div class="list-group">';
+        recent.forEach(log => {
+            const date = new Date(log.timestamp);
+            const dateStr = date.toLocaleDateString() + ' at ' + date.toLocaleTimeString();
+            
+            html += `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="emotion-badge emotion-${log.emotion}">${log.emotion.toUpperCase()}</span>
+                            <small class="text-muted ms-2">${dateStr}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        entriesDiv.innerHTML = html;
+    }
+    
+    async function clearAllData() {
+        if (!confirm('Are you sure you want to clear all emotional history? This cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            await fetch('/clear', { method: 'POST' });
+            location.reload();
+        } catch (error) {
+            alert('Error clearing data: ' + error);
+        }
+    }
+    
+    // Load data on page load
+    loadTimelineData();
+</script>
+{% endblock %}

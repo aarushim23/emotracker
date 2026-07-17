@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block title %}Home - EmoTrack{% endblock %}
+
+{% block extra_css %}
+<style>
+    .input-container {
+        position: relative;
+    }
+    
+    .char-counter {
+        position: absolute;
+        bottom: -25px;
+        right: 10px;
+        font-size: 0.9rem;
+        color: #9ca3af;
+        font-weight: 500;
+    }
+    
+    .quick-prompt {
+        background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);
+        border: 2px dashed #667eea;
+        border-radius: 12px;
+        padding: 12px 20px;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-bottom: 10px;
+    }
+    
+    .quick-prompt:hover {
+        background: var(--primary-gradient);
+        color: white;
+        border-color: transparent;
+        transform: translateX(5px);
+    }
+    
+    .feature-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: white;
+        margin: 0 auto 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .feature-card {
+        text-align: center;
+        padding: 30px;
+        background: white;
+        border-radius: 20px;
+        transition: all 0.3s;
+        height: 100%;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    }
+    
+    .pulse-animation {
+        animation: pulse-ring 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-ring {
+        0%, 100% {
+            box-shadow: 0 0 0 0 rgba(102,126,234,0.7);
+        }
+        50% {
+            box-shadow: 0 0 0 15px rgba(102,126,234,0);
+        }
+    }
+    
+    .result-card {
+        animation: slideIn 0.5s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-card">
+    <div class="section-header" style="border-image: var(--primary-gradient) 1;">
+        <i class="fas fa-pen-fancy" style="background: var(--primary-gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+        <h2>Log Your Emotions</h2>
+    </div>
+    <p class="text-muted mb-4"><i class="fas fa-info-circle"></i> Write about how you're feeling, your thoughts, or any text you'd like to analyze.</p>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="input-container mb-4">
+                <textarea 
+                    id="emotionText" 
+                    class="form-control" 
+                    rows="6" 
+                    placeholder="Example: I feel really overwhelmed today. Work has been stressful and I'm struggling to keep up..."
+                ></textarea>
+                <span id="charCount" class="char-counter">0 characters</span>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <button onclick="clearText()" class="btn btn-outline-secondary">
+                    <i class="fas fa-eraser"></i> Clear
+                </button>
+                <button onclick="analyzeEmotion()" class="btn btn-primary pulse-animation">
+                    <i class="fas fa-brain"></i> Analyze Emotion
+                </button>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <h6 class="mb-3"><i class="fas fa-bolt"></i> Quick Prompts</h6>
+            <div class="quick-prompt" onclick="fillPrompt('I am feeling happy and excited about today!')">
+                <i class="fas fa-smile"></i> Feeling happy
+            </div>
+            <div class="quick-prompt" onclick="fillPrompt('I feel overwhelmed and stressed about everything.')">
+                <i class="fas fa-frown"></i> Feeling stressed
+            </div>
+            <div class="quick-prompt" onclick="fillPrompt('I am so grateful for my friends and family.')">
+                <i class="fas fa-heart"></i> Feeling grateful
+            </div>
+            <div class="quick-prompt" onclick="fillPrompt('I am worried about what might happen next.')">
+                <i class="fas fa-sad-tear"></i> Feeling worried
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="text-center mt-5" style="display: none;">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; border-width: 0.3em;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3 text-muted"><i class="fas fa-robot"></i> AI is analyzing your emotions...</p>
+    </div>
+    
+    <!-- Results -->
+    <div id="results" class="mt-5 result-card" style="display: none;">
+        <div class="alert alert-success" style="border-left-width: 5px;">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-check-circle fa-3x me-3"></i>
+                <div>
+                    <h5 class="mb-2"><i class="fas fa-sparkles"></i> Analysis Complete!</h5>
+                    <p class="mb-2">Detected Emotion: <span id="detectedEmotion" class="emotion-badge"></span></p>
+                    <small class="text-muted"><i class="fas fa-clock"></i> Entry saved at <span id="timestamp"></span></small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h6><i class="fas fa-chart-bar"></i> Emotion Confidence Levels</h6>
+                <canvas id="probChart" height="100"></canvas>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <a href="/timeline" class="btn btn-outline-primary me-2">
+                <i class="fas fa-chart-line"></i> View Timeline
+            </a>
+            <a href="/trends" class="btn btn-outline-primary">
+                <i class="fas fa-lightbulb"></i> Get Insights
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- How It Works -->
+<div class="content-card">
+    <div class="section-header" style="border-image: var(--success-gradient) 1;">
+        <i class="fas fa-info-circle" style="background: var(--success-gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+        <h4>How It Works</h4>
+    </div>
+    <div class="row mt-4">
+        <div class="col-md-4 mb-3">
+            <div class="feature-card">
+                <div class="feature-icon" style="background: var(--primary-gradient);">
+                    <i class="fas fa-edit"></i>
+                </div>
+                <h5>1. Write</h5>
+                <p class="text-muted">Share your thoughts, feelings, or daily experiences</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="feature-card">
+                <div class="feature-icon" style="background: var(--warning-gradient);">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <h5>2. Analyze</h5>
+                <p class="text-muted">AI classifies your emotions using advanced NLP</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="feature-card">
+                <div class="feature-icon" style="background: var(--success-gradient);">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <h5>3. Track</h5>
+                <p class="text-muted">Monitor patterns and get personalized insights</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Preview -->
+<div class="content-card">
+    <div class="section-header" style="border-image: var(--info-gradient) 1;">
+        <i class="fas fa-trophy" style="background: var(--info-gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+        <h4>Why EmoTrack?</h4>
+    </div>
+    <div class="row text-center">
+        <div class="col-md-3 mb-3">
+            <div class="stat-card">
+                <i class="fas fa-brain"></i>
+                <h3>95%+</h3>
+                <p class="text-muted mb-0">AI Accuracy</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card">
+                <i class="fas fa-chart-line"></i>
+                <h3>6</h3>
+                <p class="text-muted mb-0">Emotions Tracked</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card">
+                <i class="fas fa-clock"></i>
+                <h3>&lt;1s</h3>
+                <p class="text-muted mb-0">Analysis Time</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card">
+                <i class="fas fa-lock"></i>
+                <h3>100%</h3>
+                <p class="text-muted mb-0">Private & Secure</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const emotionText = document.getElementById('emotionText');
+    const charCount = document.getElementById('charCount');
+    
+    // Character counter with color
+    emotionText.addEventListener('input', function() {
+        const length = this.value.length;
+        charCount.textContent = length + ' characters';
+        
+        if (length > 500) {
+            charCount.style.color = '#ef4444';
+        } else if (length > 200) {
+            charCount.style.color = '#f59e0b';
+        } else {
+            charCount.style.color = '#9ca3af';
+        }
+    });
+    
+    // Emotion color mapping
+    const emotionColors = {
+        'sadness': '#4facfe',
+        'joy': '#f59e0b',
+        'love': '#ec4899',
+        'anger': '#ef4444',
+        'fear': '#6366f1',
+        'surprise': '#8b5cf6'
+    };
+    
+    function fillPrompt(text) {
+        emotionText.value = text;
+        charCount.textContent = text.length + ' characters';
+        emotionText.focus();
+    }
+    
+    function clearText() {
+        emotionText.value = '';
+        charCount.textContent = '0 characters';
+        document.getElementById('results').style.display = 'none';
+    }
+    
+    async function analyzeEmotion() {
+        const text = emotionText.value.trim();
+        
+        if (!text) {
+            alert('⚠️ Please enter some text to analyze!');
+            return;
+        }
+        
+        if (text.length < 5) {
+            alert('⚠️ Please write at least 5 characters.');
+            return;
+        }
+        
+        // Show loading
+        document.getElementById('loadingIndicator').style.display = 'block';
+        document.getElementById('results').style.display = 'none';
+        
+        try {
+            const response = await fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                alert('❌ Error: ' + data.error);
+                return;
+            }
+            
+            // Display results
+            displayResults(data);
+            
+            // Clear input
+            emotionText.value = '';
+            charCount.textContent = '0 characters';
+            
+        } catch (error) {
+            alert('❌ Error analyzing emotion: ' + error);
+        } finally {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+    }
+    
+    function displayResults(data) {
+        const resultsDiv = document.getElementById('results');
+        const emotionSpan = document.getElementById('detectedEmotion');
+        const timestampSpan = document.getElementById('timestamp');
+        
+        // Set emotion badge
+        emotionSpan.textContent = data.emotion.toUpperCase();
+        emotionSpan.className = 'emotion-badge emotion-' + data.emotion;
+        
+        // Set timestamp
+        const date = new Date(data.timestamp);
+        timestampSpan.textContent = date.toLocaleString();
+        
+        // Create probability chart
+        createProbabilityChart(data.probabilities);
+        
+        // Show results with animation
+        resultsDiv.style.display = 'block';
+        resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    function createProbabilityChart(probabilities) {
+        const ctx = document.getElementById('probChart');
+        
+        // Destroy existing chart if it exists
+        if (window.probChartInstance) {
+            window.probChartInstance.destroy();
+        }
+        
+        const emotions = Object.keys(probabilities);
+        const values = Object.values(probabilities).map(v => (v * 100).toFixed(2));
+        const colors = emotions.map(e => emotionColors[e]);
+        
+        window.probChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: emotions.map(e => e.charAt(0).toUpperCase() + e.slice(1)),
+                datasets: [{
+                    label: 'Confidence (%)',
+                    data: values,
+                    backgroundColor: colors,
+                    borderRadius: 10,
+                    barThickness: 50
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        cornerRadius: 8
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Allow Ctrl/Cmd + Enter to submit
+    emotionText.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            analyzeEmotion();
+        }
+    });
+</script>
+{% endblock %}
