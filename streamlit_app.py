@@ -1,9 +1,10 @@
 """
 EmoTrack - Streamlit Application (DistilBERT Version)
-Deployed on Streamlit Community Cloud
+Mirror of the Flask app - Deployed on Streamlit Community Cloud
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import torch
 import torch.nn as nn
 from transformers import AutoTokenizer, AutoModel
@@ -26,22 +27,30 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ─── Custom CSS for premium look ─────────────────────────────────────────────
+# ─── Custom CSS ───────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
-/* Global styling */
-.stApp {
-    font-family: 'Poppins', sans-serif;
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --success-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 }
 
-/* Header styling */
+.stApp {
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #e8ecff 0%, #f8f9ff 50%, #ffeef8 100%);
+}
+
+/* Main header */
 .main-header {
     background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
     border-radius: 25px;
-    padding: 40px;
-    margin-bottom: 30px;
+    padding: 35px 40px;
+    margin-bottom: 25px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.1);
     border: 2px solid rgba(255,255,255,0.3);
     text-align: center;
@@ -52,13 +61,13 @@ st.markdown("""
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: 700;
-    font-size: 3rem;
-    margin-bottom: 5px;
+    font-size: 2.5rem;
+    margin: 0;
 }
 
 .main-header p {
     color: #6b7280;
-    font-size: 1.1rem;
+    margin: 5px 0 0 0;
     font-weight: 300;
 }
 
@@ -66,69 +75,150 @@ st.markdown("""
 .content-card {
     background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
     border-radius: 20px;
-    padding: 30px;
-    box-shadow: 0 15px 45px rgba(0,0,0,0.08);
+    padding: 25px;
     margin-bottom: 20px;
-    border: 1px solid rgba(230,230,250,0.5);
-    transition: transform 0.3s, box-shadow 0.3s;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    border: 2px solid rgba(255,255,255,0.3);
 }
 
-.content-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 20px 55px rgba(0,0,0,0.12);
+/* Section headers */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 3px solid;
+    border-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) 1;
 }
 
-/* Emotion badges */
-.emotion-badge {
-    padding: 8px 20px;
-    border-radius: 25px;
+.section-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
     font-weight: 600;
-    font-size: 14px;
-    display: inline-block;
-    color: white;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-    margin: 4px;
+    color: #1a1a2e;
 }
 
-.emotion-sadness { background: linear-gradient(135deg, #4facfe 0%, #00a8ff 100%); }
-.emotion-joy { background: linear-gradient(135deg, #FFD93D 0%, #F7B731 100%); }
-.emotion-love { background: linear-gradient(135deg, #fa709a 0%, #f093fb 100%); }
-.emotion-anger { background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%); }
-.emotion-fear { background: linear-gradient(135deg, #6a3093 0%, #a044ff 100%); }
-.emotion-surprise { background: linear-gradient(135deg, #f857a6 0%, #ff5858 100%); }
+.section-header-warning {
+    border-image: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) 1;
+}
+
+.section-header-success {
+    border-image: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) 1;
+}
+
+.section-header-info {
+    border-image: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) 1;
+}
 
 /* Stat cards */
 .stat-card {
-    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
-    border-radius: 20px;
-    padding: 25px;
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
     text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    border: 1px solid rgba(230,230,250,0.5);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    transition: all 0.3s;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12);
 }
 
 .stat-card h2 {
+    font-size: 2rem;
+    font-weight: 700;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    font-weight: 700;
-    font-size: 2.5rem;
-    margin: 10px 0;
+    margin: 8px 0;
 }
 
 .stat-card p {
     color: #6b7280;
     margin: 0;
+    font-size: 0.85rem;
+}
+
+/* Metric cards (gradient background) */
+.metric-card {
+    color: white;
+    border-radius: 20px;
+    padding: 25px;
+    text-align: center;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+    transition: all 0.3s;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+}
+
+.metric-card h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: white;
+    margin: 10px 0;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.metric-card p {
+    color: rgba(255,255,255,0.9);
+    margin: 0;
+    font-weight: 500;
+}
+
+.metric-card .icon {
+    font-size: 1.8rem;
+    margin-bottom: 5px;
+}
+
+/* Emotion badges */
+.emotion-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.emotion-sadness { background: #dbeafe; color: #1e40af; }
+.emotion-joy { background: #fef3c7; color: #92400e; }
+.emotion-love { background: #fce7f3; color: #9d174d; }
+.emotion-anger { background: #fee2e2; color: #991b1b; }
+.emotion-fear { background: #e0e7ff; color: #3730a3; }
+.emotion-surprise { background: #ede9fe; color: #5b21b6; }
+
+/* Quick prompts */
+.quick-prompt {
+    background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);
+    border: 2px dashed #667eea;
+    border-radius: 12px;
+    padding: 12px 18px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9rem;
 }
 
 /* Feature cards */
 .feature-card {
     text-align: center;
-    padding: 30px;
+    padding: 25px;
     background: white;
     border-radius: 20px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.06);
-    height: 100%;
+    transition: all 0.3s;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.15);
 }
 
 .feature-icon {
@@ -138,71 +228,159 @@ st.markdown("""
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
+    font-size: 1.8rem;
     color: white;
     margin: 0 auto 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
-/* Quick prompts */
-.quick-prompt {
-    background: linear-gradient(135deg, rgba(102,126,234,0.08) 0%, rgba(118,75,162,0.08) 100%);
-    border: 2px dashed #667eea;
-    border-radius: 12px;
-    padding: 12px 20px;
-    cursor: pointer;
+/* Resource cards (for wellness tab) */
+.resource-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
+    border-radius: 20px;
+    padding: 22px;
+    margin-bottom: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     transition: all 0.3s;
-    margin-bottom: 8px;
+    border: 2px solid rgba(255,255,255,0.3);
 }
 
-/* Result display */
-.result-box {
-    background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.03) 100%);
-    border-left: 5px solid #10b981;
-    border-radius: 15px;
-    padding: 25px;
-    margin: 20px 0;
+.resource-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.15);
 }
+
+/* Tags */
+.tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    margin-right: 6px;
+    margin-bottom: 6px;
+}
+
+.tag-breathing { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #2d3748; }
+.tag-meditation { background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%); color: #2d3748; }
+.tag-music { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #2d3748; }
+.tag-exercise { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); color: #2d3748; }
+.tag-sleep { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); color: #2d3748; }
+
+/* Crisis banner */
+.crisis-banner {
+    background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+    color: white;
+    padding: 22px 28px;
+    border-radius: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 15px 40px rgba(238, 9, 121, 0.3);
+}
+
+.crisis-banner h4 { color: white; margin-bottom: 8px; font-weight: 700; }
+.crisis-banner p { color: rgba(255,255,255,0.95); margin: 4px 0; }
+.crisis-banner a { color: white; text-decoration: underline; font-weight: 600; }
 
 /* Insight cards */
 .insight-card {
-    background: linear-gradient(135deg, rgba(102,126,234,0.05) 0%, rgba(118,75,162,0.05) 100%);
+    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
     border-radius: 15px;
     padding: 20px;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    border-left: 5px solid;
+    transition: all 0.3s;
+}
+
+.insight-positive { border-left-color: #10b981; }
+.insight-negative { border-left-color: #ef4444; }
+.insight-neutral { border-left-color: #6366f1; }
+.insight-warning { border-left-color: #f59e0b; }
+
+/* AI suggestion cards */
+.ai-suggestion {
+    background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);
     border-left: 4px solid #667eea;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 12px;
+    transition: all 0.3s;
 }
 
-/* Recommendation cards */
-.rec-card {
-    background: linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(16,185,129,0.03) 100%);
+/* Trend cards */
+.trend-card {
+    background: white;
     border-radius: 15px;
-    padding: 20px;
-    margin-bottom: 10px;
-    border-left: 4px solid #10b981;
+    padding: 18px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    transition: all 0.3s;
+    border: 2px solid transparent;
 }
 
-/* Footer */
-.footer {
-    text-align: center;
-    color: #6b7280;
-    padding: 30px;
-    margin-top: 40px;
-    font-weight: 300;
+.trend-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 10px 25px rgba(102,126,234,0.2);
 }
 
-/* Tab styling override */
-.stTabs [data-baseweb="tab-list"] {
+/* External links */
+.external-link {
+    display: inline-flex;
+    align-items: center;
     gap: 8px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    font-size: 0.85rem;
+}
+
+.link-youtube { background: linear-gradient(135deg, #FF0000 0%, #CC0000 100%); color: white; }
+.link-spotify { background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%); color: white; }
+.link-article { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+
+/* App resource icon */
+.app-resource-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    color: white;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+/* Article list items */
+.article-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: all 0.3s;
+}
+
+.article-item:hover {
+    background: rgba(102,126,234,0.05);
+    transform: translateX(5px);
+}
+
+/* Tab styling */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 6px;
     background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
     border-radius: 20px;
-    padding: 10px;
+    padding: 8px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.06);
 }
 
 .stTabs [data-baseweb="tab"] {
     border-radius: 15px;
-    padding: 12px 24px;
+    padding: 10px 20px;
     font-weight: 500;
 }
 
@@ -219,32 +397,24 @@ header {visibility: hidden;}
 """, unsafe_allow_html=True)
 
 
-# ─── Emotion labels & colors ────────────────────────────────────────────────
+# ─── Emotion labels & colors ─────────────────────────────────────────────────
 EMOTIONS = {
     0: "sadness", 1: "joy", 2: "love",
     3: "anger", 4: "fear", 5: "surprise"
 }
 
 EMOTION_COLORS = {
-    'sadness': '#4facfe',
-    'joy': '#f59e0b',
-    'love': '#ec4899',
-    'anger': '#ef4444',
-    'fear': '#6366f1',
-    'surprise': '#8b5cf6'
+    'sadness': '#4facfe', 'joy': '#f59e0b', 'love': '#ec4899',
+    'anger': '#ef4444', 'fear': '#6366f1', 'surprise': '#8b5cf6'
 }
 
 EMOTION_EMOJIS = {
-    'sadness': '😢',
-    'joy': '😊',
-    'love': '❤️',
-    'anger': '😡',
-    'fear': '😨',
-    'surprise': '😲'
+    'sadness': '😢', 'joy': '😊', 'love': '💕',
+    'anger': '😠', 'fear': '😰', 'surprise': '😮'
 }
 
 
-# ─── Model loading (cached) ─────────────────────────────────────────────────
+# ─── Model ────────────────────────────────────────────────────────────────────
 class EmotionClassifier(nn.Module):
     """Same architecture as training"""
     def __init__(self, n_classes=6):
@@ -269,13 +439,10 @@ def load_model():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     try:
-        # Download model files from HuggingFace Hub
-        # hf_hub_download caches files automatically
         weights_path = hf_hub_download(repo_id=HF_REPO, filename="model/model_weights.pt")
         metadata_path = hf_hub_download(repo_id=HF_REPO, filename="model/metadata.pkl")
         emotions_path = hf_hub_download(repo_id=HF_REPO, filename="model/emotions.pkl")
 
-        # Download tokenizer files to local dir (AutoTokenizer needs a directory)
         tokenizer_files = [
             "model/tokenizer/special_tokens_map.json",
             "model/tokenizer/tokenizer.json",
@@ -293,18 +460,14 @@ def load_model():
 
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 
-        # Create model and load state_dict (version-agnostic, unlike torch.load of full model)
         model = EmotionClassifier(n_classes=6)
         state_dict = torch.load(weights_path, map_location=device, weights_only=True)
         model.load_state_dict(state_dict)
-
         model.to(device)
         model.eval()
 
-        # Load metadata
         with open(metadata_path, 'rb') as f:
             metadata = pickle.load(f)
-
         with open(emotions_path, 'rb') as f:
             emotions = pickle.load(f)
 
@@ -316,9 +479,8 @@ def load_model():
         return None, None, None, None, None
 
 
-# ─── Text processing & prediction ───────────────────────────────────────────
+# ─── Core functions ───────────────────────────────────────────────────────────
 def preprocess_text(text):
-    """Clean text"""
     text = str(text).lower()
     text = re.sub(r'http\S+', '', text)
     text = re.sub(r'@\w+', '', text)
@@ -326,107 +488,52 @@ def preprocess_text(text):
     return text
 
 
-def predict_emotion(text, model, tokenizer, device, metadata, emotions):
-    """Predict emotion"""
+def predict_emotion(text, model, tokenizer, device, metadata):
     if model is None or tokenizer is None:
         return None, None
-
     text = preprocess_text(text)
     max_len = metadata.get('max_len', 64) if metadata else 64
-
     try:
-        encoding = tokenizer(
-            text,
-            add_special_tokens=True,
-            max_length=max_len,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        )
-
+        encoding = tokenizer(text, add_special_tokens=True, max_length=max_len,
+                             padding='max_length', truncation=True, return_tensors='pt')
         input_ids = encoding['input_ids'].to(device)
         attention_mask = encoding['attention_mask'].to(device)
-
-        model.eval()
         with torch.no_grad():
             outputs = model(input_ids, attention_mask)
             probs = torch.softmax(outputs, dim=1).cpu().numpy()[0]
             predicted_label = np.argmax(probs)
-
-        emotion = emotions[predicted_label]
-        emotion_probs = {emotions[i]: float(probs[i]) for i in range(6)}
-
+        emotion = EMOTIONS[predicted_label]
+        emotion_probs = {EMOTIONS[i]: float(probs[i]) for i in range(6)}
         return emotion, emotion_probs
     except Exception as e:
-        st.error(f"❌ Prediction error: {e}")
+        st.error(f"Prediction error: {e}")
         return None, None
 
 
-# ─── Session state log management ────────────────────────────────────────────
-def init_logs():
-    """Initialize logs in session state"""
-    if 'logs' not in st.session_state:
-        if os.path.exists('user_logs.json'):
-            try:
-                with open('user_logs.json', 'r', encoding='utf-8') as f:
-                    content = f.read().strip()
-                    st.session_state.logs = json.loads(content) if content else []
-            except Exception:
-                st.session_state.logs = []
-        else:
-            st.session_state.logs = []
-
-
-def save_logs():
-    """Save logs to file (best-effort in cloud)"""
-    try:
-        with open('user_logs.json', 'w', encoding='utf-8') as f:
-            json.dump(st.session_state.logs, f, indent=2, ensure_ascii=False)
-    except Exception:
-        pass  # In cloud environments, filesystem may be read-only
-
-
-# ─── Analysis functions ──────────────────────────────────────────────────────
 def calculate_mood_stability(logs, days=7):
-    """Calculate stability"""
     if len(logs) < 2:
         return 1.0
-
     cutoff = datetime.now() - timedelta(days=days)
-    recent_logs = [log for log in logs if datetime.fromisoformat(log['timestamp']) >= cutoff]
-
-    if len(recent_logs) < 2:
+    recent = [l for l in logs if datetime.fromisoformat(l['timestamp']) >= cutoff]
+    if len(recent) < 2:
         return 1.0
-
-    emotion_indices = [
-        list(EMOTIONS.keys())[list(EMOTIONS.values()).index(log['predicted_emotion'])]
-        for log in recent_logs
-    ]
-
-    variance = np.var(emotion_indices)
-    max_variance = np.var([0, 5])
-    stability = 1 - (variance / max_variance)
-
-    return max(0, min(1, stability))
+    indices = [list(EMOTIONS.keys())[list(EMOTIONS.values()).index(l['predicted_emotion'])] for l in recent]
+    variance = np.var(indices)
+    max_var = np.var([0, 5])
+    return max(0, min(1, 1 - (variance / max_var)))
 
 
 def analyze_trends(logs, hours=24):
-    """Analyze trends"""
     if len(logs) < 2:
         return {}
-
     cutoff = datetime.now() - timedelta(hours=hours)
-    recent_logs = [log for log in logs if datetime.fromisoformat(log['timestamp']) >= cutoff]
-
-    if len(recent_logs) < 2:
+    recent = [l for l in logs if datetime.fromisoformat(l['timestamp']) >= cutoff]
+    if len(recent) < 2:
         return {}
-
-    emotion_scores = {emotion: [] for emotion in EMOTIONS.values()}
-
-    for log in recent_logs:
+    emotion_scores = {e: [] for e in EMOTIONS.values()}
+    for log in recent:
         for emotion, prob in log['emotion_probs'].items():
             emotion_scores[emotion].append(prob)
-
     trends = {}
     for emotion, scores in emotion_scores.items():
         if len(scores) >= 2:
@@ -438,214 +545,232 @@ def analyze_trends(logs, hours=24):
                 'current_avg': round(recent_avg, 4),
                 'direction': 'rising' if change > 5 else 'falling' if change < -5 else 'stable'
             }
-
     return trends
 
 
 def generate_ai_insights(logs, trends, stability):
-    """Generate insights"""
     insights = []
-
     if len(logs) == 0:
         return ["Start tracking to receive insights!"]
-
     if stability > 0.8:
         insights.append(f"🌟 Very stable emotions (stability: {stability:.2f})")
     elif stability < 0.5:
         insights.append(f"⚠️ High fluctuation (stability: {stability:.2f})")
-
     for emotion, data in trends.items():
         change = data['change_percent']
-
         if emotion == 'anger' and change > 15:
             insights.append(f"🔴 Anger increased {abs(change):.1f}%")
         elif emotion == 'sadness' and change > 15:
             insights.append(f"💙 Sadness rising ({abs(change):.1f}%)")
         elif emotion == 'joy' and change > 10:
             insights.append(f"✨ Joy up {abs(change):.1f}%!")
-
     if not insights:
         insights.append("📈 Tracking your patterns...")
-
     return insights
 
 
 def generate_recommendations(logs, trends):
-    """Generate recommendations"""
     if len(logs) == 0:
         return ["Start logging emotions!"]
-
     recs = []
     for emotion, data in trends.items():
         change = data['change_percent']
-
         if emotion == 'anger' and change > 15:
             recs.append("🧘 Try breathing exercises")
         if emotion == 'sadness' and change > 15:
             recs.append("💚 Connect with friends")
-
     recs.append("📖 Daily journaling helps")
     recs.append("💪 Regular exercise improves mood")
-
     return recs[:5]
 
 
-# ─── UI Components ───────────────────────────────────────────────────────────
-def render_header():
+# ─── Session state ────────────────────────────────────────────────────────────
+if 'logs' not in st.session_state:
+    st.session_state.logs = []
+
+
+# ─── Header ───────────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="main-header">
+    <h1>🎭 EmoTrack</h1>
+    <p>AI-Powered Emotional Wellbeing Monitor</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ─── Load model ───────────────────────────────────────────────────────────────
+with st.spinner("🤖 Loading AI model..."):
+    model, tokenizer, device, metadata, emotions_dict = load_model()
+
+if model is None:
+    st.error("❌ Model failed to load. Please check the model files.")
+    st.stop()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TABS
+# ═══════════════════════════════════════════════════════════════════════════════
+tab_home, tab_timeline, tab_insights, tab_upload, tab_wellness = st.tabs([
+    "🏠 Home", "📈 Timeline", "💡 AI Insights", "☁️ Upload", "❤️ Wellness"
+])
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 1: HOME
+# ═══════════════════════════════════════════════════════════════════════════════
+with tab_home:
+    # ─── Log Your Emotions ────────────────────────────────────────────────
     st.markdown("""
-    <div class="main-header">
-        <h1>🧠 EmoTrack</h1>
-        <p>✨ AI-Powered Emotional Wellbeing Monitor</p>
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.8rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">✍️</span>
+            <h2>Log Your Emotions</h2>
+        </div>
+        <p style="color:#6b7280; margin-bottom:15px;">ℹ️ Write about how you're feeling, your thoughts, or any text you'd like to analyze.</p>
     </div>
     """, unsafe_allow_html=True)
 
+    col_input, col_prompts = st.columns([2, 1])
 
-def render_home_tab(model, tokenizer, device, metadata, emotions):
-    """Home page - emotion logging and analysis"""
-
-    st.markdown('<div class="content-card">', unsafe_allow_html=True)
-    st.markdown("### ✍️ Log Your Emotions")
-    st.caption("Write about how you're feeling, your thoughts, or any text you'd like to analyze.")
-
-    col1, col2 = st.columns([3, 1])
-
-    with col1:
-        text_input = st.text_area(
-            "Your thoughts",
-            height=150,
+    with col_input:
+        user_text = st.text_area(
+            "What's on your mind?",
             placeholder="Example: I feel really overwhelmed today. Work has been stressful and I'm struggling to keep up...",
-            label_visibility="collapsed"
+            height=150, label_visibility="collapsed"
         )
 
-        col_clear, col_spacer, col_analyze = st.columns([1, 2, 1])
+        col_clear, col_analyze = st.columns([1, 2])
+        with col_clear:
+            if st.button("🧹 Clear", use_container_width=True):
+                st.rerun()
         with col_analyze:
-            analyze_btn = st.button("🧠 Analyze Emotion", type="primary", use_container_width=True)
+            analyze_clicked = st.button("🧠 Analyze Emotion", type="primary", use_container_width=True)
 
-    with col2:
+    with col_prompts:
         st.markdown("##### ⚡ Quick Prompts")
         prompts = [
             ("😊 Feeling happy", "I am feeling happy and excited about today!"),
-            ("😟 Feeling stressed", "I feel overwhelmed and stressed about everything."),
-            ("❤️ Feeling grateful", "I am so grateful for my friends and family."),
-            ("😰 Feeling worried", "I am worried about what might happen next.")
+            ("😫 Feeling stressed", "I feel overwhelmed and stressed about everything."),
+            ("💗 Feeling grateful", "I am so grateful for my friends and family."),
+            ("😟 Feeling worried", "I am worried about what might happen next."),
         ]
         for label, prompt_text in prompts:
             if st.button(label, key=f"prompt_{label}", use_container_width=True):
-                st.session_state['prompt_fill'] = prompt_text
+                st.session_state['prefill_text'] = prompt_text
                 st.rerun()
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Handle prefilled text
+    if 'prefill_text' in st.session_state:
+        user_text = st.session_state.pop('prefill_text')
+        analyze_clicked = True
 
-    # Handle prompt fill
-    if 'prompt_fill' in st.session_state:
-        text_input = st.session_state.pop('prompt_fill')
-
-    # Analyze emotion
-    if analyze_btn and text_input and len(text_input.strip()) >= 5:
+    # ─── Analyze ──────────────────────────────────────────────────────────
+    if analyze_clicked and user_text and len(user_text.strip()) >= 5:
         with st.spinner("🤖 AI is analyzing your emotions..."):
-            emotion, probs = predict_emotion(text_input, model, tokenizer, device, metadata, emotions)
+            emotion, probs = predict_emotion(user_text, model, tokenizer, device, metadata)
 
-        if emotion:
+        if emotion and probs:
             # Save to logs
             log_entry = {
                 'timestamp': datetime.now().isoformat(),
-                'text': text_input,
+                'text': user_text,
                 'predicted_emotion': emotion,
                 'emotion_probs': probs
             }
             st.session_state.logs.append(log_entry)
-            save_logs()
 
-            # Display results
-            st.markdown(f"""
-            <div class="result-box">
-                <h3>✅ Analysis Complete!</h3>
-                <p>Detected Emotion: <span class="emotion-badge emotion-{emotion}">{EMOTION_EMOJIS.get(emotion, '')} {emotion.upper()}</span></p>
-                <small style="color: #6b7280;">🕐 Entry saved at {datetime.now().strftime('%B %d, %Y %I:%M %p')}</small>
-            </div>
-            """, unsafe_allow_html=True)
+            # Show results
+            st.success(f"✨ **Analysis Complete!** Detected Emotion: **{EMOTION_EMOJIS.get(emotion, '')} {emotion.upper()}**")
 
             # Probability chart
-            st.markdown("#### 📊 Emotion Confidence Levels")
-            prob_df = pd.DataFrame({
-                'Emotion': [e.capitalize() for e in probs.keys()],
-                'Confidence': [v * 100 for v in probs.values()]
-            })
-            fig = px.bar(
-                prob_df, x='Emotion', y='Confidence',
-                color='Emotion',
-                color_discrete_map={e.capitalize(): EMOTION_COLORS[e] for e in EMOTION_COLORS},
-                labels={'Confidence': 'Confidence (%)'}
-            )
+            st.markdown("##### 📊 Emotion Confidence Levels")
+            fig = go.Figure(data=[go.Bar(
+                x=[e.capitalize() for e in probs.keys()],
+                y=[v * 100 for v in probs.values()],
+                marker_color=[EMOTION_COLORS[e] for e in probs.keys()],
+                text=[f"{v*100:.1f}%" for v in probs.values()],
+                textposition='auto',
+            )])
             fig.update_layout(
-                showlegend=False,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(family='Poppins'),
-                yaxis=dict(range=[0, 100]),
-                margin=dict(t=20)
+                yaxis_title="Confidence (%)", yaxis_range=[0, 100],
+                plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                height=350, margin=dict(t=10, b=40),
+                font=dict(family="Poppins")
             )
-            fig.update_traces(marker=dict(cornerradius=8))
             st.plotly_chart(fig, use_container_width=True)
 
-    elif analyze_btn and (not text_input or len(text_input.strip()) < 5):
+    elif analyze_clicked:
         st.warning("⚠️ Please write at least 5 characters to analyze.")
 
-    # How it works section
-    st.markdown('<div class="content-card">', unsafe_allow_html=True)
-    st.markdown("### ℹ️ How It Works")
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    # ─── How It Works ─────────────────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header section-header-success">
+            <span style="font-size:1.5rem;">ℹ️</span>
+            <h2 style="font-size:1.2rem;">How It Works</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
         st.markdown("""
         <div class="feature-card">
             <div class="feature-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">✏️</div>
             <h4>1. Write</h4>
-            <p style="color: #6b7280;">Share your thoughts, feelings, or daily experiences</p>
+            <p style="color:#6b7280;">Share your thoughts, feelings, or daily experiences</p>
         </div>
         """, unsafe_allow_html=True)
-    with col2:
+    with c2:
         st.markdown("""
         <div class="feature-card">
-            <div class="feature-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">🤖</div>
+            <div class="feature-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">🤖</div>
             <h4>2. Analyze</h4>
-            <p style="color: #6b7280;">AI classifies your emotions using advanced NLP</p>
+            <p style="color:#6b7280;">AI classifies your emotions using advanced NLP</p>
         </div>
         """, unsafe_allow_html=True)
-    with col3:
+    with c3:
         st.markdown("""
         <div class="feature-card">
-            <div class="feature-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">📊</div>
+            <div class="feature-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">📊</div>
             <h4>3. Track</h4>
-            <p style="color: #6b7280;">Monitor patterns and get personalized insights</p>
+            <p style="color:#6b7280;">Monitor patterns and get personalized insights</p>
         </div>
         """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # Stats preview
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
+    # ─── Why EmoTrack? ────────────────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header section-header-info">
+            <span style="font-size:1.5rem;">🏆</span>
+            <h2 style="font-size:1.2rem;">Why EmoTrack?</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    s1, s2, s3, s4 = st.columns(4)
+    with s1:
         st.markdown('<div class="stat-card"><p>🧠</p><h2>95%+</h2><p>AI Accuracy</p></div>', unsafe_allow_html=True)
-    with col2:
+    with s2:
         st.markdown('<div class="stat-card"><p>🎭</p><h2>6</h2><p>Emotions Tracked</p></div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="stat-card"><p>⚡</p><h2><1s</h2><p>Analysis Time</p></div>', unsafe_allow_html=True)
-    with col4:
+    with s3:
+        st.markdown('<div class="stat-card"><p>⚡</p><h2>&lt;1s</h2><p>Analysis Time</p></div>', unsafe_allow_html=True)
+    with s4:
         st.markdown('<div class="stat-card"><p>🔒</p><h2>100%</h2><p>Private & Secure</p></div>', unsafe_allow_html=True)
 
 
-def render_timeline_tab():
-    """Timeline page"""
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 2: TIMELINE
+# ═══════════════════════════════════════════════════════════════════════════════
+with tab_timeline:
     logs = st.session_state.logs
-
-    # Stats row
-    col1, col2, col3 = st.columns(3)
     stability = calculate_mood_stability(logs)
 
-    with col1:
+    c1, c2, c3 = st.columns(3)
+    with c1:
         st.markdown(f'<div class="stat-card"><p>📊</p><h2>{len(logs)}</h2><p>Total Entries</p></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown(f'<div class="stat-card"><p>⚖️</p><h2>{stability:.3f}</h2><p>Mood Stability</p><small style="color:#9ca3af;">(0 = volatile, 1 = stable)</small></div>', unsafe_allow_html=True)
-    with col3:
+    with c2:
+        st.markdown(f'<div class="stat-card"><p>⚖️</p><h2>{stability:.3f}</h2><p>Mood Stability</p></div>', unsafe_allow_html=True)
+    with c3:
         if logs:
             first = datetime.fromisoformat(logs[0]['timestamp'])
             last = datetime.fromisoformat(logs[-1]['timestamp'])
@@ -658,300 +783,751 @@ def render_timeline_tab():
 
     if not logs:
         st.info("📝 No entries yet. Go to the **Home** tab to start logging emotions!")
-        return
+    else:
+        # Timeline chart
+        df = pd.DataFrame([{
+            'Time': datetime.fromisoformat(l['timestamp']),
+            'Emotion': l['predicted_emotion'].capitalize(),
+            'emotion_raw': l['predicted_emotion']
+        } for l in logs])
 
-    # Timeline chart
-    st.markdown('<div class="content-card">', unsafe_allow_html=True)
-    st.markdown("### 📈 Emotional Timeline")
-
-    emotion_to_num = {'sadness': 0, 'joy': 1, 'love': 2, 'anger': 3, 'fear': 4, 'surprise': 5}
-
-    timeline_df = pd.DataFrame([{
-        'Time': datetime.fromisoformat(log['timestamp']),
-        'Emotion': log['predicted_emotion'].capitalize(),
-        'Value': emotion_to_num.get(log['predicted_emotion'], 0),
-        'Color': EMOTION_COLORS.get(log['predicted_emotion'], '#667eea')
-    } for log in logs])
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=timeline_df['Time'],
-        y=timeline_df['Value'],
-        mode='lines+markers',
-        line=dict(color='#6366f1', width=2),
-        marker=dict(
-            size=10,
-            color=[EMOTION_COLORS.get(e.lower(), '#667eea') for e in timeline_df['Emotion']],
-            line=dict(width=2, color='white')
-        ),
-        text=timeline_df['Emotion'],
-        hovertemplate='%{text}<br>%{x}<extra></extra>'
-    ))
-    fig.update_layout(
-        yaxis=dict(
-            tickvals=[0, 1, 2, 3, 4, 5],
-            ticktext=['Sadness', 'Joy', 'Love', 'Anger', 'Fear', 'Surprise'],
-            range=[-0.5, 5.5]
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(family='Poppins'),
-        margin=dict(t=20),
-        showlegend=False,
-        height=350
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Emotion distribution
-    st.markdown('<div class="content-card">', unsafe_allow_html=True)
-    st.markdown("### 🥧 Emotion Distribution")
-
-    col1, col2 = st.columns(2)
-    emotion_counts = Counter(log['predicted_emotion'] for log in logs)
-
-    with col1:
-        dist_df = pd.DataFrame({
-            'Emotion': [e.capitalize() for e in emotion_counts.keys()],
-            'Count': list(emotion_counts.values())
-        })
-        fig = px.pie(
-            dist_df, names='Emotion', values='Count',
-            color='Emotion',
-            color_discrete_map={e.capitalize(): EMOTION_COLORS[e] for e in emotion_counts.keys()},
-            hole=0.4
-        )
+        fig = px.scatter(df, x='Time', y='Emotion', color='Emotion',
+                         color_discrete_map={e.capitalize(): EMOTION_COLORS[e] for e in EMOTION_COLORS},
+                         size_max=15)
+        fig.update_traces(marker=dict(size=14, line=dict(width=2, color='white')))
         fig.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(family='Poppins'),
-            margin=dict(t=20)
+            title="📈 Emotion Timeline",
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            height=400, font=dict(family="Poppins"),
+            showlegend=False
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    with col2:
-        st.markdown("##### Legend")
-        for emotion, count in emotion_counts.items():
-            pct = (count / len(logs)) * 100
+        # Emotion distribution
+        emotion_counts = Counter(l['predicted_emotion'] for l in logs)
+        fig2 = go.Figure(data=[go.Pie(
+            labels=[e.capitalize() for e in emotion_counts.keys()],
+            values=list(emotion_counts.values()),
+            marker_colors=[EMOTION_COLORS[e] for e in emotion_counts.keys()],
+            hole=0.4, textinfo='label+percent'
+        )])
+        fig2.update_layout(
+            title="🎭 Emotion Distribution",
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            height=350, font=dict(family="Poppins")
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+
+        # Recent entries
+        st.markdown("##### 📋 Recent Entries")
+        for log in reversed(logs[-10:]):
+            em = log['predicted_emotion']
+            ts = datetime.fromisoformat(log['timestamp']).strftime("%b %d, %H:%M")
             st.markdown(f"""
-            <div style="display:flex; align-items:center; margin-bottom:8px;">
-                <div style="width:20px; height:20px; background:{EMOTION_COLORS.get(emotion, '#ccc')}; border-radius:4px; margin-right:10px;"></div>
-                <span><strong>{emotion.capitalize()}:</strong> {count} ({pct:.1f}%)</span>
+            <div class="content-card" style="padding:15px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <span class="emotion-badge emotion-{em}">{EMOTION_EMOJIS.get(em,'')} {em.upper()}</span>
+                        <span style="color:#6b7280; margin-left:10px; font-size:0.85rem;">{ts}</span>
+                    </div>
+                </div>
+                <p style="margin:8px 0 0 0; color:#374151; font-size:0.9rem;">{log['text'][:150]}{'...' if len(log['text']) > 150 else ''}</p>
             </div>
             """, unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # Recent entries
-    st.markdown('<div class="content-card">', unsafe_allow_html=True)
-    st.markdown("### 🕐 Recent Entries")
-    recent = list(reversed(logs[-10:]))
-    for log in recent:
-        dt = datetime.fromisoformat(log['timestamp'])
-        date_str = dt.strftime('%B %d, %Y at %I:%M %p')
-        emotion = log['predicted_emotion']
-        st.markdown(f"""
-        <div style="padding:12px 20px; margin-bottom:8px; background:rgba(0,0,0,0.02); border-radius:12px; display:flex; align-items:center; gap:12px;">
-            <span class="emotion-badge emotion-{emotion}">{EMOTION_EMOJIS.get(emotion, '')} {emotion.upper()}</span>
-            <small style="color:#6b7280;">{date_str}</small>
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Clear data
-    st.markdown("---")
-    if st.button("🗑️ Clear All History", type="secondary"):
-        st.session_state.logs = []
-        save_logs()
-        st.rerun()
-
-
-def render_insights_tab():
-    """AI Insights & Trends page"""
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 3: AI INSIGHTS
+# ═══════════════════════════════════════════════════════════════════════════════
+with tab_insights:
     logs = st.session_state.logs
     trends_24h = analyze_trends(logs, hours=24)
     trends_7d = analyze_trends(logs, hours=168)
     stability = calculate_mood_stability(logs)
     insights = generate_ai_insights(logs, trends_24h, stability)
 
-    st.markdown('<div class="content-card">', unsafe_allow_html=True)
-    st.markdown("### 💡 AI Insights")
-    for insight in insights:
-        st.markdown(f'<div class="insight-card">{insight}</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # ─── Overview Metrics (4 gradient cards) ──────────────────────────────
+    m1, m2, m3, m4 = st.columns(4)
+    dominant = "—"
+    if logs:
+        emo_counts = Counter(l['predicted_emotion'] for l in logs)
+        dominant = max(emo_counts, key=emo_counts.get).capitalize()
+        first_d = datetime.fromisoformat(logs[0]['timestamp'])
+        last_d = datetime.fromisoformat(logs[-1]['timestamp'])
+        dtrack = max(1, (last_d - first_d).days)
+    else:
+        dtrack = 0
 
-    # 24h Trends
-    if trends_24h:
-        st.markdown('<div class="content-card">', unsafe_allow_html=True)
-        st.markdown("### 📊 24-Hour Trends")
-        for emotion, data in trends_24h.items():
-            direction_icon = "📈" if data['direction'] == 'rising' else "📉" if data['direction'] == 'falling' else "➡️"
-            color = "#10b981" if data['direction'] == 'stable' else "#ef4444" if data['direction'] == 'rising' and emotion in ['anger', 'sadness', 'fear'] else "#f59e0b"
+    with m1:
+        st.markdown(f"""
+        <div class="metric-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="icon">🧠</div><h2>{len(logs)}</h2><p>Total Entries</p>
+        </div>""", unsafe_allow_html=True)
+    with m2:
+        st.markdown(f"""
+        <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="icon">💓</div><h2>{stability:.2f}</h2><p>Mood Stability</p>
+        </div>""", unsafe_allow_html=True)
+    with m3:
+        st.markdown(f"""
+        <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="icon">📅</div><h2>{dtrack}</h2><p>Days Tracked</p>
+        </div>""", unsafe_allow_html=True)
+    with m4:
+        st.markdown(f"""
+        <div class="metric-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+            <div class="icon">😊</div><h2>{dominant}</h2><p>Top Emotion</p>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ─── AI-Powered Insights ──────────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">🤖</span>
+            <h2>AI-Powered Insights</h2>
+        </div>
+        <p style="color:#6b7280;">ℹ️ Our AI analyzes your emotional patterns and provides personalized insights</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if len(logs) < 5:
+        st.markdown("""
+        <div class="ai-suggestion">
+            <h5>💡 Start Your Journey</h5>
+            <p style="color:#6b7280;">Log at least 5 emotions over a few days to receive AI-powered insights about your emotional patterns</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        for insight in insights:
+            if 'stable' in insight.lower() or 'joy' in insight.lower():
+                cls = "insight-positive"
+                title = "🌟 Emotional Stability" if 'stable' in insight.lower() else "✨ Joy Pattern"
+            elif 'anger' in insight.lower() or 'fear' in insight.lower():
+                cls = "insight-negative"
+                title = "🔴 Anger Alert" if 'anger' in insight.lower() else "😰 Anxiety Notice"
+            elif 'sadness' in insight.lower():
+                cls = "insight-negative"
+                title = "💙 Sadness Trend"
+            elif 'fluctuat' in insight.lower():
+                cls = "insight-warning"
+                title = "⚠️ Fluctuation Alert"
+            else:
+                cls = "insight-neutral"
+                title = "📊 Pattern Analysis"
+
             st.markdown(f"""
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:rgba(0,0,0,0.02); border-radius:10px; margin-bottom:8px;">
-                <span>{EMOTION_EMOJIS.get(emotion, '')} <strong>{emotion.capitalize()}</strong></span>
-                <span>{direction_icon} {data['change_percent']:+.1f}% <span style="color:{color}; font-weight:600;">({data['direction']})</span></span>
+            <div class="insight-card {cls}">
+                <h5 style="margin-bottom:5px;">{title}</h5>
+                <p style="margin:0; color:#374151;">{insight}</p>
             </div>
             """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
 
-    # 7-day Trends
+    # ─── 24-Hour Trends ───────────────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header section-header-warning">
+            <span style="font-size:1.5rem;">⏰</span>
+            <h2>Last 24 Hours Analysis</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if trends_24h:
+        cols = st.columns(3)
+        for i, (emotion, data) in enumerate(trends_24h.items()):
+            with cols[i % 3]:
+                direction = data['direction']
+                arrow = "↑" if direction == 'rising' else "↓" if direction == 'falling' else "→"
+                color = "#ef4444" if direction == 'rising' else "#10b981" if direction == 'falling' else "#6b7280"
+                st.markdown(f"""
+                <div class="trend-card">
+                    <div style="display:flex; align-items:center; margin-bottom:10px;">
+                        <span style="font-size:1.5rem; color:{color}; margin-right:10px;">{arrow}</span>
+                        <div>
+                            <strong>{emotion.capitalize()}</strong><br>
+                            <small style="color:#6b7280;">{direction.capitalize()}</small>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:#6b7280;">Change</span>
+                        <strong style="color:{color};">{data['change_percent']:.1f}%</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <span style="color:#6b7280;">Current Level</span>
+                        <strong>{data['current_avg']:.4f}</strong>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        st.info("ℹ️ Not enough data for 24-hour trends. Keep logging emotions throughout the day!")
+
+    # ─── Weekly Trends ────────────────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header section-header-success">
+            <span style="font-size:1.5rem;">📅</span>
+            <h2>Weekly Emotional Trends</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     if trends_7d:
-        st.markdown('<div class="content-card">', unsafe_allow_html=True)
-        st.markdown("### 📊 7-Day Trends")
-        trend_df = pd.DataFrame([
-            {'Emotion': e.capitalize(), 'Change (%)': d['change_percent'], 'Direction': d['direction']}
-            for e, d in trends_7d.items()
-        ])
-        fig = px.bar(
-            trend_df, x='Emotion', y='Change (%)',
-            color='Emotion',
-            color_discrete_map={e.capitalize(): EMOTION_COLORS[e] for e in trends_7d.keys()}
-        )
-        fig.update_layout(
-            showlegend=False,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(family='Poppins'),
-            margin=dict(t=20)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        data_rows = []
+        for emotion, data in trends_7d.items():
+            data_rows.append({
+                'Emotion': emotion.upper(),
+                'Trend': f"{'🔺' if data['direction']=='rising' else '🔽' if data['direction']=='falling' else '➡️'} {data['direction'].capitalize()}",
+                'Change': f"{data['change_percent']:.1f}%",
+                'Current Avg': f"{data['current_avg']:.4f}"
+            })
+        st.dataframe(pd.DataFrame(data_rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("ℹ️ Not enough data for weekly trends. Log emotions for 7 days to see patterns!")
 
-    if not trends_24h and not trends_7d:
-        st.info("📝 Need at least 2 entries to show trends. Keep logging!")
+    # ─── AI Recommendations ───────────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header section-header-info">
+            <span style="font-size:1.5rem;">💡</span>
+            <h2>AI Recommendations</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
+    r1, r2 = st.columns(2)
+    with r1:
+        st.markdown("""
+        <div class="ai-suggestion">
+            <h6>📖 Journal Daily</h6>
+            <p style="color:#6b7280; margin:0; font-size:0.9rem;">Studies show that daily journaling for just 5 minutes improves emotional awareness by 30%</p>
+        </div>
+        <div class="ai-suggestion">
+            <h6>🛏️ Sleep Hygiene</h6>
+            <p style="color:#6b7280; margin:0; font-size:0.9rem;">Aim for 7-8 hours of quality sleep - it's foundational for emotional regulation</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with r2:
+        st.markdown("""
+        <div class="ai-suggestion">
+            <h6>💪 Physical Activity</h6>
+            <p style="color:#6b7280; margin:0; font-size:0.9rem;">Even 15 minutes of exercise can significantly boost your mood and reduce stress</p>
+        </div>
+        <div class="ai-suggestion">
+            <h6>👥 Social Connection</h6>
+            <p style="color:#6b7280; margin:0; font-size:0.9rem;">Regular social interaction is crucial for mental wellbeing - reach out to friends</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-def render_upload_tab(model, tokenizer, device, metadata, emotions):
-    """Upload tweets page"""
-    st.markdown('<div class="content-card">', unsafe_allow_html=True)
-    st.markdown("### ☁️ Upload Tweets for Batch Analysis")
-    st.caption("Upload a CSV file with a 'text' column to analyze emotions in bulk.")
+    # ─── Emotional Balance Analysis (Radar Chart) ─────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">🎯</span>
+            <h2>Emotional Balance Analysis</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    uploaded_file = st.file_uploader("Choose a CSV file", type=['csv'])
+    if logs:
+        emotion_totals = {e: 0 for e in EMOTIONS.values()}
+        for log in logs:
+            for em, prob in log['emotion_probs'].items():
+                emotion_totals[em] += prob
+        emotion_avgs = {e: (t / len(logs)) * 100 for e, t in emotion_totals.items()}
 
-    if uploaded_file:
-        try:
-            df = pd.read_csv(uploaded_file)
-            if 'text' not in df.columns:
-                st.error("❌ CSV must have a 'text' column!")
+        col_radar, col_profile = st.columns([2, 1])
+
+        with col_radar:
+            categories = [e.capitalize() for e in emotion_avgs.keys()]
+            values = list(emotion_avgs.values())
+            fig = go.Figure(data=go.Scatterpolar(
+                r=values + [values[0]],
+                theta=categories + [categories[0]],
+                fill='toself',
+                fillcolor='rgba(102, 126, 234, 0.2)',
+                line=dict(color='#667eea', width=3),
+                marker=dict(size=8, color='#667eea')
+            ))
+            fig.update_layout(
+                polar=dict(radialaxis=dict(visible=True, range=[0, 100], ticksuffix='%')),
+                showlegend=False, height=400,
+                plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(family="Poppins")
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col_profile:
+            sorted_emos = sorted(emotion_avgs.items(), key=lambda x: x[1], reverse=True)
+            primary = sorted_emos[0]
+            secondary = sorted_emos[1]
+
+            st.markdown(f"""
+            <div style="padding:10px;">
+                <h5>📊 Your Profile</h5>
+                <p><strong>Primary:</strong></p>
+                <span class="emotion-badge emotion-{primary[0]}">{primary[0].upper()}</span>
+                <p style="margin-top:5px;">{primary[1]:.1f}%</p>
+                <p><strong>Secondary:</strong></p>
+                <span class="emotion-badge emotion-{secondary[0]}">{secondary[0].upper()}</span>
+                <p style="margin-top:5px;">{secondary[1]:.1f}%</p>
+                <hr>
+            """, unsafe_allow_html=True)
+
+            # Variance check
+            vals = list(emotion_avgs.values())
+            mean_val = np.mean(vals)
+            variance = np.mean([(v - mean_val)**2 for v in vals])
+            if variance < 50:
+                st.success("✅ Well-balanced emotions!")
+            elif variance > 200:
+                st.warning("⚠️ High emotional variance detected")
             else:
-                st.success(f"✅ Found {len(df)} rows")
-                if st.button("🚀 Analyze All", type="primary"):
-                    progress = st.progress(0)
-                    processed = 0
-                    total = min(len(df), 100)
+                st.info("ℹ️ Moderate emotional balance")
 
-                    for idx, row in df.head(100).iterrows():
-                        emotion, probs = predict_emotion(row['text'], model, tokenizer, device, metadata, emotions)
-                        if emotion:
-                            st.session_state.logs.append({
-                                'timestamp': datetime.now().isoformat(),
-                                'text': row['text'],
-                                'predicted_emotion': emotion,
-                                'emotion_probs': probs,
-                                'source': 'tweet_upload'
-                            })
-                            processed += 1
-                        progress.progress((idx + 1) / total)
-
-                    save_logs()
-                    st.success(f"✅ Processed {processed} tweets! Check the Timeline tab.")
-        except Exception as e:
-            st.error(f"❌ Error: {e}")
-
-    st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+    else:
+        st.info("📝 No data available yet. Start logging emotions to see your balance analysis!")
 
 
-def render_wellness_tab():
-    """Recommendations page"""
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 4: UPLOAD
+# ═══════════════════════════════════════════════════════════════════════════════
+with tab_upload:
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">📤</span>
+            <h2>Upload Tweet History</h2>
+        </div>
+        <p style="color:#6b7280;">Analyze your Twitter/X history to understand your emotional patterns over time</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    uploaded_file = st.file_uploader("Select your tweet CSV file", type=['csv'],
+                                     help="The CSV should have a 'text' column containing your tweets")
+
+    if st.button("☁️ Upload & Analyze", type="primary", use_container_width=True, disabled=uploaded_file is None):
+        if uploaded_file:
+            with st.spinner("🔄 Analyzing your tweets... This may take a moment."):
+                try:
+                    df = pd.read_csv(uploaded_file)
+                    if 'text' not in df.columns:
+                        st.error("❌ CSV must have a 'text' column!")
+                    else:
+                        processed = 0
+                        progress = st.progress(0)
+                        total = min(len(df), 100)
+                        for idx, row in df.iterrows():
+                            if processed >= 100:
+                                break
+                            emotion, probs = predict_emotion(str(row['text']), model, tokenizer, device, metadata)
+                            if emotion:
+                                st.session_state.logs.append({
+                                    'timestamp': datetime.now().isoformat(),
+                                    'text': str(row['text']),
+                                    'predicted_emotion': emotion,
+                                    'emotion_probs': probs,
+                                    'source': 'tweet_upload'
+                                })
+                                processed += 1
+                                progress.progress(processed / total)
+
+                        st.success(f"✅ **Upload Successful!** {processed} tweets have been analyzed and added to your timeline.")
+                except Exception as e:
+                    st.error(f"❌ Upload Failed: {e}")
+
+    # ─── How to Get Your Twitter Data ─────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header section-header-info">
+            <span style="font-size:1.5rem;">❓</span>
+            <h2 style="font-size:1.2rem;">How to Get Your Twitter Data</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    steps = [
+        ("1. **Request Your Data from Twitter/X**", "Go to Settings → Your Account → Download an archive of your data"),
+        ("2. **Wait for Email**", "Twitter will send you a download link (usually within 24 hours)"),
+        ("3. **Extract the Archive**", "Unzip the downloaded file and locate the tweets.csv file"),
+        ("4. **Upload Here**", "Upload the CSV file using the form above"),
+    ]
+    for title, desc in steps:
+        st.markdown(f"""
+        <div class="content-card" style="padding:15px; margin-bottom:8px;">
+            <strong>{title}</strong><br>
+            <span style="color:#6b7280;">{desc}</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.info("🔒 **Privacy Note:** Your data is processed locally and stored only in this session. We analyze up to 100 tweets at a time for performance.")
+
+    # ─── Expected CSV Format ──────────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">📄</span>
+            <h2 style="font-size:1.2rem;">Expected CSV Format</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.code("""text
+"Just had the best coffee of my life! ☕"
+"Feeling overwhelmed with work today..."
+"Can't believe how beautiful the sunset is 🌅"
+"So frustrated with customer service 😡"
+"Excited for the weekend!" """, language="csv")
+
+    st.warning("⚠️ Make sure your CSV has a column named `text` (lowercase)")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 5: WELLNESS
+# ═══════════════════════════════════════════════════════════════════════════════
+with tab_wellness:
     logs = st.session_state.logs
     trends_24h = analyze_trends(logs, hours=24)
     recs = generate_recommendations(logs, trends_24h)
 
-    st.markdown('<div class="content-card">', unsafe_allow_html=True)
-    st.markdown("### ❤️ Wellness Recommendations")
-    st.caption("Personalized suggestions based on your emotional patterns.")
-
-    for rec in recs:
-        st.markdown(f'<div class="rec-card">{rec}</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # General wellness tips
-    st.markdown('<div class="content-card">', unsafe_allow_html=True)
-    st.markdown("### 🌟 General Wellness Tips")
-
-    tips = [
-        ("🧘 Mindfulness", "Practice 5 minutes of mindful breathing daily to reduce stress and improve emotional awareness."),
-        ("💤 Sleep Hygiene", "Aim for 7-9 hours of quality sleep. Good sleep is foundational for emotional wellbeing."),
-        ("🏃 Physical Activity", "Even a 20-minute walk can significantly improve your mood and reduce anxiety."),
-        ("📝 Journaling", "Write down 3 things you're grateful for each day to shift focus toward positivity."),
-        ("🤝 Social Connection", "Reach out to a friend or loved one. Human connection is vital for emotional health."),
-        ("🎯 Set Boundaries", "Learn to say no. Protecting your energy is key to maintaining emotional balance.")
-    ]
-
-    cols = st.columns(2)
-    for i, (title, desc) in enumerate(tips):
-        with cols[i % 2]:
-            st.markdown(f"""
-            <div class="rec-card">
-                <strong>{title}</strong><br>
-                <span style="color:#6b7280;">{desc}</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-# ─── Main App ────────────────────────────────────────────────────────────────
-def main():
-    init_logs()
-
-    # Load model with loading message
-    with st.spinner("🤖 Loading AI model... (this may take a minute on first launch)"):
-        result = load_model()
-
-    if result[0] is None:
-        st.error("❌ Model failed to load. Please check the model files.")
-        return
-
-    model, tokenizer, device, metadata, emotions = result
-
-    # Render header
-    render_header()
-
-    # Tabs
-    tab_home, tab_timeline, tab_insights, tab_upload, tab_wellness = st.tabs([
-        "🏠 Home",
-        "📈 Timeline",
-        "💡 AI Insights",
-        "☁️ Upload",
-        "❤️ Wellness"
-    ])
-
-    with tab_home:
-        render_home_tab(model, tokenizer, device, metadata, emotions)
-
-    with tab_timeline:
-        render_timeline_tab()
-
-    with tab_insights:
-        render_insights_tab()
-
-    with tab_upload:
-        render_upload_tab(model, tokenizer, device, metadata, emotions)
-
-    with tab_wellness:
-        render_wellness_tab()
-
-    # Footer
+    # ─── Crisis Support Banner ────────────────────────────────────────────
     st.markdown("""
-    <div class="footer">
-        <p>❤️ EmoTrack - Your Personal Emotional Wellbeing Companion</p>
-        <p style="font-size: 14px; opacity: 0.7;">🤖 Powered by DistilBERT & Streamlit</p>
+    <div class="crisis-banner">
+        <div style="display:flex; align-items:center;">
+            <span style="font-size:2.5rem; margin-right:20px;">📞</span>
+            <div>
+                <h4>💗 24/7 Crisis Support</h4>
+                <p><strong>US:</strong> 988 (Suicide & Crisis Lifeline) | <strong>Text:</strong> "HELLO" to 741741</p>
+                <p><strong>International:</strong> <a href="https://findahelpline.com" target="_blank">findahelpline.com</a></p>
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
+    # ─── Personalized AI Recommendations ──────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">🤖</span>
+            <h2>Personalized AI Recommendations</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-if __name__ == '__main__':
-    main()
+    if recs:
+        rc1, rc2 = st.columns(2)
+        for i, rec in enumerate(recs):
+            with rc1 if i % 2 == 0 else rc2:
+                st.markdown(f"""
+                <div class="content-card" style="padding:15px; margin-bottom:10px; border-left: 3px solid #667eea;">
+                    💡 {rec}
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        st.info("Start logging emotions to receive personalized recommendations!")
+
+    # ─── Interactive Breathing Exercise ────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">🫁</span>
+            <h2>Interactive Breathing Exercise</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    breathing_html = """
+    <div style="text-align:center; padding:30px; background:white; border-radius:20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+        <h4 style="color:#1a1a2e; font-family:Poppins;">Box Breathing Exercise</h4>
+        <p style="color:#6b7280; font-family:Poppins;">Follow the circle and breathe along</p>
+        <div style="position:relative; width:200px; height:200px; margin:20px auto;">
+            <div id="breathingCircle" style="
+                width:200px; height:200px; border-radius:50%;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                display:flex; align-items:center; justify-content:center;
+                transition: transform 4s ease-in-out, background 0.5s;
+                box-shadow: 0 20px 60px rgba(102,126,234,0.4);
+            ">
+                <h2 id="breathingText" style="color:white; font-weight:700; margin:0; font-family:Poppins;">Ready</h2>
+            </div>
+        </div>
+        <h5 id="breathingInstruction" style="min-height:30px; color:#667eea; font-weight:600; font-family:Poppins;">
+            Click Start to begin your breathing session
+        </h5>
+        <button id="breathingBtn" onclick="startBreathing()" style="
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color:white; border:none; padding:12px 30px; border-radius:12px;
+            font-size:1rem; font-weight:600; cursor:pointer; font-family:Poppins;
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+        ">▶ Start Session</button>
+        <button id="resetBtn" onclick="resetBreathing()" style="
+            display:none; background:#f0f0f0; color:#333; border:none;
+            padding:12px 30px; border-radius:12px; font-size:1rem;
+            cursor:pointer; margin-left:10px; font-family:Poppins;
+        ">⏹ Stop</button>
+        <div style="margin-top:15px; padding:12px; background:rgba(102,126,234,0.1); border-radius:12px;">
+            <small style="color:#6b7280; font-family:Poppins;">
+                ℹ️ Box breathing (4-4-4-4) helps reduce stress and anxiety by activating the parasympathetic nervous system
+            </small>
+        </div>
+    </div>
+    <script>
+        let breathingInterval, breathingActive=false, breathingPhase=0, breathingCycles=0;
+        const maxCycles=4;
+        const phases=[
+            {text:'Breathe In',instruction:'🌬️ Inhale deeply through your nose for 4 seconds',scale:1.3,color:'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'},
+            {text:'Hold',instruction:'⏸️ Hold your breath for 4 seconds',scale:1.3,color:'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'},
+            {text:'Breathe Out',instruction:'💨 Exhale slowly through your mouth for 4 seconds',scale:1,color:'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'},
+            {text:'Hold',instruction:'⏸️ Hold your breath for 4 seconds',scale:1,color:'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'}
+        ];
+        function startBreathing(){
+            if(breathingActive)return;
+            breathingActive=true;breathingPhase=0;breathingCycles=0;
+            document.getElementById('breathingBtn').style.display='none';
+            document.getElementById('resetBtn').style.display='inline-block';
+            nextPhase();
+            breathingInterval=setInterval(nextPhase,4000);
+        }
+        function nextPhase(){
+            const c=document.getElementById('breathingCircle'),t=document.getElementById('breathingText'),
+                  ins=document.getElementById('breathingInstruction');
+            const p=phases[breathingPhase];
+            t.textContent=p.text;ins.textContent=p.instruction;
+            c.style.transform='scale('+p.scale+')';c.style.background=p.color;
+            breathingPhase++;
+            if(breathingPhase>=phases.length){breathingPhase=0;breathingCycles++;
+                if(breathingCycles>=maxCycles)setTimeout(completeBreathing,4000);
+            }
+        }
+        function completeBreathing(){
+            clearInterval(breathingInterval);breathingActive=false;
+            document.getElementById('breathingText').textContent='✨ Complete!';
+            document.getElementById('breathingInstruction').textContent='🎉 Great job! You completed 4 breathing cycles';
+            document.getElementById('breathingCircle').style.transform='scale(1)';
+            document.getElementById('breathingCircle').style.background='linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            document.getElementById('breathingBtn').style.display='inline-block';
+            document.getElementById('breathingBtn').innerHTML='🔄 Start Again';
+            document.getElementById('resetBtn').style.display='none';
+        }
+        function resetBreathing(){
+            clearInterval(breathingInterval);breathingActive=false;breathingPhase=0;breathingCycles=0;
+            document.getElementById('breathingText').textContent='Ready';
+            document.getElementById('breathingInstruction').textContent='Click Start to begin your breathing session';
+            document.getElementById('breathingCircle').style.transform='scale(1)';
+            document.getElementById('breathingCircle').style.background='linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            document.getElementById('breathingBtn').style.display='inline-block';
+            document.getElementById('breathingBtn').innerHTML='▶ Start Session';
+            document.getElementById('resetBtn').style.display='none';
+        }
+    </script>
+    """
+    components.html(breathing_html, height=500)
+
+    # ─── Breathing Exercise Videos ────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">🌬️</span>
+            <h2>Breathing Exercises</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    vc1, vc2 = st.columns(2)
+    with vc1:
+        st.markdown("""
+        <div class="resource-card">
+            <h5>5-Minute Box Breathing</h5>
+            <p style="color:#6b7280; font-size:0.9rem;">Perfect for stress relief and anxiety reduction</p>
+            <span class="tag tag-breathing">Breathing</span>
+            <span class="tag tag-meditation">Stress Relief</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.video("https://www.youtube.com/watch?v=tEmt1Znux58")
+
+    with vc2:
+        st.markdown("""
+        <div class="resource-card">
+            <h5>4-7-8 Breathing Technique</h5>
+            <p style="color:#6b7280; font-size:0.9rem;">Dr. Andrew Weil's relaxation breathing exercise</p>
+            <span class="tag tag-breathing">Breathing</span>
+            <span class="tag tag-sleep">Better Sleep</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.video("https://www.youtube.com/watch?v=YRPh_GaiL8s")
+
+    # ─── Guided Meditation ────────────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">🧘</span>
+            <h2>Guided Meditation</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    mc1, mc2 = st.columns(2)
+    with mc1:
+        st.markdown("""
+        <div class="resource-card">
+            <h5>10-Minute Daily Meditation</h5>
+            <p style="color:#6b7280; font-size:0.9rem;">Headspace - Mindfulness meditation for beginners</p>
+            <span class="tag tag-meditation">Meditation</span>
+            <span class="tag tag-breathing">Mindfulness</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.video("https://www.youtube.com/watch?v=ZToicYcHIOU")
+
+    with mc2:
+        st.markdown("""
+        <div class="resource-card">
+            <h5>Anxiety Relief Meditation</h5>
+            <p style="color:#6b7280; font-size:0.9rem;">Calm your mind and reduce worry</p>
+            <span class="tag tag-meditation">Meditation</span>
+            <span class="tag tag-breathing">Anxiety Relief</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.video("https://www.youtube.com/watch?v=O-6f5wQXSu8")
+
+    # ─── Calming Music & Playlists ────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">🎵</span>
+            <h2>Calming Music & Playlists</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    playlists = [
+        ("Peaceful Piano", "Relax and indulge with beautiful piano pieces", "Music", "Relaxation", "37i9dQZF1DX4sWSpwq3LiO"),
+        ("Deep Focus", "Keep calm and focus with ambient sounds", "Music", "Focus", "37i9dQZF1DWZeKCadgRdKQ"),
+        ("Sleep", "Gentle ambient piano to help you fall asleep", "Music", "Sleep", "37i9dQZF1DWZd79rJ6a7lp"),
+        ("Mood Booster", "Get happy with today's dose of feel-good songs", "Music", "Energy", "37i9dQZF1DX3rxVfibe1L0"),
+    ]
+
+    pc1, pc2 = st.columns(2)
+    for i, (name, desc, tag1, tag2, playlist_id) in enumerate(playlists):
+        with pc1 if i % 2 == 0 else pc2:
+            st.markdown(f"""
+            <div class="resource-card">
+                <h5>🎧 {name}</h5>
+                <p style="color:#6b7280; font-size:0.9rem;">{desc}</p>
+                <span class="tag tag-music">{tag1}</span>
+                <span class="tag tag-meditation">{tag2}</span>
+            </div>
+            """, unsafe_allow_html=True)
+            components.html(
+                f'<iframe style="border-radius:12px" src="https://open.spotify.com/embed/playlist/{playlist_id}" width="100%" height="152" frameBorder="0" allowtransparency="true" allow="encrypted-media"></iframe>',
+                height=165
+            )
+
+    # ─── Movement & Exercise ──────────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">🏋️</span>
+            <h2>Movement & Exercise</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    ec1, ec2 = st.columns(2)
+    with ec1:
+        st.markdown("""
+        <div class="resource-card">
+            <h5>Yoga for Stress Relief</h5>
+            <p style="color:#6b7280; font-size:0.9rem;">20-minute gentle yoga flow</p>
+            <span class="tag tag-exercise">Yoga</span>
+            <span class="tag tag-breathing">Stress Relief</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.video("https://www.youtube.com/watch?v=COp7BR_Dvps")
+
+    with ec2:
+        st.markdown("""
+        <div class="resource-card">
+            <h5>Morning Stretching Routine</h5>
+            <p style="color:#6b7280; font-size:0.9rem;">10-minute energizing stretch</p>
+            <span class="tag tag-exercise">Stretching</span>
+            <span class="tag tag-breathing">Morning Routine</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.video("https://www.youtube.com/watch?v=g_tea8ZNk5A")
+
+    # ─── Mental Health Apps & Resources ────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">📱</span>
+            <h2>Mental Health Apps & Resources</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    apps = [
+        ("🧠 Headspace", "Meditation and mindfulness app", "https://www.headspace.com"),
+        ("🌙 Calm", "Sleep stories and meditation", "https://www.calm.com"),
+        ("💬 BetterHelp", "Online therapy and counseling", "https://www.betterhelp.com"),
+        ("☕ 7 Cups", "Free emotional support", "https://www.7cups.com"),
+        ("📈 Moodfit", "Mood tracking and CBT tools", "https://www.getmoodfit.com"),
+        ("😊 Sanvello", "Anxiety & depression support", "https://www.sanvello.com"),
+    ]
+
+    ac1, ac2, ac3 = st.columns(3)
+    for i, (name, desc, url) in enumerate(apps):
+        with [ac1, ac2, ac3][i % 3]:
+            st.markdown(f"""
+            <div class="resource-card" style="text-align:center; padding:20px;">
+                <div class="app-resource-icon" style="margin:0 auto 10px;">{name.split()[0]}</div>
+                <h5>{' '.join(name.split()[1:])}</h5>
+                <p style="color:#6b7280; font-size:0.85rem;">{desc}</p>
+                <a href="{url}" target="_blank" class="external-link link-article" style="text-decoration:none;">
+                    🔗 Visit Website
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ─── Evidence-Based Articles ──────────────────────────────────────────
+    st.markdown("""
+    <div class="content-card">
+        <div class="section-header">
+            <span style="font-size:1.5rem;">📚</span>
+            <h2>Evidence-Based Articles</h2>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    articles = [
+        ("🏛️ APA: Mindfulness Meditation", "American Psychological Association research on meditation benefits",
+         "https://www.apa.org/topics/mindfulness/meditation"),
+        ("🏥 Harvard: Breathing Techniques", "Harvard Medical School on breath control for stress",
+         "https://www.health.harvard.edu/mind-and-mood/relaxation-techniques-breath-control-helps-quell-errant-stress-response"),
+        ("💚 NIMH: Mental Health Care", "National Institute of Mental Health guidelines",
+         "https://www.nimh.nih.gov/health/topics/caring-for-your-mental-health"),
+        ("🧠 Psychology Today: Emotional Intelligence", "Understanding and managing your emotions",
+         "https://www.psychologytoday.com/us/basics/emotional-intelligence"),
+    ]
+
+    for title, desc, url in articles:
+        st.markdown(f"""
+        <a href="{url}" target="_blank" style="text-decoration:none; color:inherit;">
+            <div class="article-item">
+                <div>
+                    <h6 style="margin:0;">{title}</h6>
+                    <p style="color:#6b7280; margin:2px 0 0 0; font-size:0.85rem;">{desc}</p>
+                </div>
+                <span style="color:#6b7280;">🔗</span>
+            </div>
+        </a>
+        """, unsafe_allow_html=True)
+
+
+# ─── Footer ───────────────────────────────────────────────────────────────────
+st.markdown("""
+<div style="text-align:center; color:#6b7280; padding:30px; margin-top:30px; font-weight:300;">
+    Made with ❤️ by EmoTrack | Powered by DistilBERT AI
+</div>
+""", unsafe_allow_html=True)
