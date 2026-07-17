@@ -3,15 +3,10 @@ EmoTrack - Flask Application (DistilBERT Version)
 """
 
 from flask import Flask, render_template, request, jsonify
-import torch
-import torch.nn as nn
-from transformers import AutoTokenizer, AutoModel
 import pickle
 import json
 import os
 from datetime import datetime, timedelta
-import pandas as pd
-import numpy as np
 import re
 from collections import Counter
 
@@ -33,23 +28,33 @@ tokenizer = None
 device = None
 metadata = None
 
-class EmotionClassifier(nn.Module):
-    """Same architecture as training"""
-    def __init__(self, n_classes=6):
-        super(EmotionClassifier, self).__init__()
-        self.bert = AutoModel.from_pretrained('distilbert-base-uncased')
-        self.dropout = nn.Dropout(0.3)
-        self.fc = nn.Linear(self.bert.config.hidden_size, n_classes)
-    
-    def forward(self, input_ids, attention_mask):
-        outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
-        pooled = outputs.last_hidden_state[:, 0, :]
-        x = self.dropout(pooled)
-        return self.fc(x)
-
 def load_model():
     """Load trained model - supports both local files and HuggingFace Hub"""
     global model, tokenizer, device, EMOTIONS, metadata
+    
+    print("⏳ Importing heavy libraries (torch, transformers)...")
+    import torch
+    import torch.nn as nn
+    from transformers import AutoTokenizer, AutoModel
+    
+    # Define class here so nn.Module is available
+    class EmotionClassifier(nn.Module):
+        """Same architecture as training"""
+        def __init__(self, n_classes=6):
+            super(EmotionClassifier, self).__init__()
+            self.bert = AutoModel.from_pretrained('distilbert-base-uncased')
+            self.dropout = nn.Dropout(0.3)
+            self.fc = nn.Linear(self.bert.config.hidden_size, n_classes)
+        
+        def forward(self, input_ids, attention_mask):
+            outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+            pooled = outputs.last_hidden_state[:, 0, :]
+            x = self.dropout(pooled)
+            return self.fc(x)
+
+    # Attach to global scope if needed, or just let torch load it via local scope
+    global EmotionClassifier_ref
+    EmotionClassifier_ref = EmotionClassifier
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
@@ -146,6 +151,10 @@ def predict_emotion(text):
     if model is None or tokenizer is None:
         return None, None
     
+    import torch  # local import
+    import torch.nn.functional as F
+    import numpy as np
+    
     text = preprocess_text(text)
     max_len = metadata.get('max_len', 64) if metadata else 64
     
@@ -162,18 +171,19 @@ def predict_emotion(text):
         input_ids = encoding['input_ids'].to(device)
         attention_mask = encoding['attention_mask'].to(device)
         
-        model.eval()
         with torch.no_grad():
             outputs = model(input_ids, attention_mask)
-            probs = torch.softmax(outputs, dim=1).cpu().numpy()[0]
-            predicted_label = np.argmax(probs)
+            probabilities = F.softmax(outputs, dim=1).cpu().numpy()[0]
+            
+        prediction = int(np.argmax(probabilities))
+        emotion = EMOTIONS[prediction]
         
-        emotion = EMOTIONS[predicted_label]
-        emotion_probs = {EMOTIONS[i]: float(probs[i]) for i in range(6)}
+        probs_dict = {EMOTIONS[i]: float(prob) for i, prob in enumerate(probabilities)}
         
-        return emotion, emotion_probs
+        return emotion, probs_dict
+        
     except Exception as e:
-        print(f"❌ Prediction error: {e}")
+        print(f"❌ Error during prediction: {e}")
         return None, None
 
 def load_user_logs():
@@ -200,6 +210,7 @@ def save_user_logs(logs):
 
 def calculate_mood_stability(logs, days=7):
     """Calculate stability"""
+    import numpy as np
     if len(logs) < 2:
         return 1.0
     
@@ -221,16 +232,19 @@ def calculate_mood_stability(logs, days=7):
     return max(0, min(1, stability))
 
 def analyze_trends(logs, hours=24):
-    """Analyze trends"""
-    if len(logs) < 2:
+    """Analyze trends over the specified time period"""
+    import pandas as pd
+    import numpy as np
+    
+    now = datetime.now()
+    cutoff = now - timedelta(hours=hours)
+    
+    # Filter logs
+    recent_logs = [l for l in logs if datetime.fromisoformat(l['timestamp']) >= cutoff]
+    if not recent_logs:
         return {}
-    
-    cutoff = datetime.now() - timedelta(hours=hours)
-    recent_logs = [log for log in logs if datetime.fromisoformat(log['timestamp']) >= cutoff]
-    
-    if len(recent_logs) < 2:
-        return {}
-    
+        
+    df = pd.DataFrame(recent_logs)
     emotion_scores = {emotion: [] for emotion in EMOTIONS.values()}
     
     for log in recent_logs:
