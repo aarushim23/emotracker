@@ -153,7 +153,6 @@ def predict_emotion(text):
     
     import torch  # local import
     import torch.nn.functional as F
-    import numpy as np
     
     text = preprocess_text(text)
     max_len = metadata.get('max_len', 64) if metadata else 64
@@ -173,12 +172,12 @@ def predict_emotion(text):
         
         with torch.no_grad():
             outputs = model(input_ids, attention_mask)
-            probabilities = F.softmax(outputs, dim=1).cpu().numpy()[0]
+            probabilities = F.softmax(outputs, dim=1).cpu().tolist()[0]
             
-        prediction = int(np.argmax(probabilities))
+        prediction = int(probabilities.index(max(probabilities)))
         emotion = EMOTIONS[prediction]
         
-        probs_dict = {EMOTIONS[i]: float(prob) for i, prob in enumerate(probabilities)}
+        probs_dict = {EMOTIONS[i]: prob for i, prob in enumerate(probabilities)}
         
         return emotion, probs_dict
         
@@ -210,7 +209,6 @@ def save_user_logs(logs):
 
 def calculate_mood_stability(logs, days=7):
     """Calculate stability"""
-    import numpy as np
     if len(logs) < 2:
         return 1.0
     
@@ -225,17 +223,18 @@ def calculate_mood_stability(logs, days=7):
         for log in recent_logs
     ]
     
-    variance = np.var(emotion_indices)
-    max_variance = np.var([0, 5])
+    # Calculate variance manually instead of numpy
+    mean = sum(emotion_indices) / len(emotion_indices)
+    variance = sum((x - mean) ** 2 for x in emotion_indices) / len(emotion_indices)
+    
+    # Max variance is variance of [0, 5]
+    max_variance = 6.25  # variance of 0 and 5
     stability = 1 - (variance / max_variance)
     
     return max(0, min(1, stability))
 
 def analyze_trends(logs, hours=24):
     """Analyze trends over the specified time period"""
-    import pandas as pd
-    import numpy as np
-    
     now = datetime.now()
     cutoff = now - timedelta(hours=hours)
     
@@ -244,7 +243,6 @@ def analyze_trends(logs, hours=24):
     if not recent_logs:
         return {}
         
-    df = pd.DataFrame(recent_logs)
     emotion_scores = {emotion: [] for emotion in EMOTIONS.values()}
     
     for log in recent_logs:
@@ -254,8 +252,12 @@ def analyze_trends(logs, hours=24):
     trends = {}
     for emotion, scores in emotion_scores.items():
         if len(scores) >= 2:
-            recent_avg = np.mean(scores[-3:]) if len(scores) >= 3 else scores[-1]
-            older_avg = np.mean(scores[:-3]) if len(scores) > 3 else scores[0]
+            recent_scores = scores[-3:] if len(scores) >= 3 else [scores[-1]]
+            older_scores = scores[:-3] if len(scores) > 3 else [scores[0]]
+            
+            recent_avg = sum(recent_scores) / len(recent_scores)
+            older_avg = sum(older_scores) / len(older_scores)
+            
             change = ((recent_avg - older_avg) / (older_avg + 0.001)) * 100
             trends[emotion] = {
                 'change_percent': round(change, 2),
