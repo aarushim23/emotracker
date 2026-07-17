@@ -141,6 +141,9 @@ def preprocess_text(text):
 def predict_emotion(text):
     """Predict emotion"""
     if model is None or tokenizer is None:
+        load_model()
+        
+    if model is None or tokenizer is None:
         return None, None
     
     text = preprocess_text(text)
@@ -414,11 +417,11 @@ def clear_logs():
         os.rename(LOG_FILE, backup_path)
     return jsonify({'success': True})
 
-# Load model at module level so gunicorn workers pick it up
+# We intentionally do NOT load the model here to prevent Render port scan timeouts.
+# The model will be loaded lazily on the first request to predict_emotion().
 print("=" * 60)
-print("🎭 EMOTRACK")
+print("🎭 EMOTRACK (Lazy Loading Enabled)")
 print("=" * 60)
-load_model()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 7860))
