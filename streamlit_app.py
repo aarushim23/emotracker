@@ -587,6 +587,8 @@ def generate_recommendations(logs, trends):
 # ─── Session state ────────────────────────────────────────────────────────────
 if 'logs' not in st.session_state:
     st.session_state.logs = []
+if 'emotion_text' not in st.session_state:
+    st.session_state.emotion_text = ''
 
 
 # ─── Header ───────────────────────────────────────────────────────────────────
@@ -634,13 +636,16 @@ with tab_home:
     with col_input:
         user_text = st.text_area(
             "What's on your mind?",
+            value=st.session_state.emotion_text,
             placeholder="Example: I feel really overwhelmed today. Work has been stressful and I'm struggling to keep up...",
-            height=150, label_visibility="collapsed"
+            height=150, label_visibility="collapsed",
+            key="emotion_text_input"
         )
 
         col_clear, col_analyze = st.columns([1, 2])
         with col_clear:
             if st.button("🧹 Clear", use_container_width=True):
+                st.session_state.emotion_text = ''
                 st.rerun()
         with col_analyze:
             analyze_clicked = st.button("🧠 Analyze Emotion", type="primary", use_container_width=True)
@@ -655,13 +660,12 @@ with tab_home:
         ]
         for label, prompt_text in prompts:
             if st.button(label, key=f"prompt_{label}", use_container_width=True):
-                st.session_state['prefill_text'] = prompt_text
+                st.session_state.emotion_text = prompt_text
                 st.rerun()
 
-    # Handle prefilled text
-    if 'prefill_text' in st.session_state:
-        user_text = st.session_state.pop('prefill_text')
-        analyze_clicked = True
+    # Use the text area value (handles both typed and prompt-filled)
+    if user_text:
+        pass  # user_text already set from text_area widget
 
     # ─── Analyze ──────────────────────────────────────────────────────────
     if analyze_clicked and user_text and len(user_text.strip()) >= 5:
@@ -784,23 +788,48 @@ with tab_timeline:
     if not logs:
         st.info("📝 No entries yet. Go to the **Home** tab to start logging emotions!")
     else:
-        # Timeline chart
+        # Emotional Timeline (LINE graph matching Flask app)
+        EMOTION_ORDER = ['sadness', 'joy', 'love', 'anger', 'fear', 'surprise']
+        EMOTION_Y_MAP = {e: i for i, e in enumerate(EMOTION_ORDER)}
+
         df = pd.DataFrame([{
             'Time': datetime.fromisoformat(l['timestamp']),
             'Emotion': l['predicted_emotion'].capitalize(),
-            'emotion_raw': l['predicted_emotion']
+            'y': EMOTION_Y_MAP.get(l['predicted_emotion'], 0)
         } for l in logs])
 
-        fig = px.scatter(df, x='Time', y='Emotion', color='Emotion',
-                         color_discrete_map={e.capitalize(): EMOTION_COLORS[e] for e in EMOTION_COLORS},
-                         size_max=15)
-        fig.update_traces(marker=dict(size=14, line=dict(width=2, color='white')))
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=df['Time'], y=df['y'],
+            mode='lines+markers',
+            line=dict(color='#667eea', width=3, shape='spline'),
+            marker=dict(size=10, color=[EMOTION_COLORS.get(e.lower(), '#667eea') for e in df['Emotion']],
+                        line=dict(width=2, color='white')),
+            hovertext=[f"{e}<br>{t.strftime('%m/%d/%Y %I:%M %p')}" for e, t in zip(df['Emotion'], df['Time'])],
+            hoverinfo='text',
+        ))
         fig.update_layout(
-            title="📈 Emotion Timeline",
+            yaxis=dict(
+                tickmode='array', tickvals=list(range(len(EMOTION_ORDER))),
+                ticktext=[e.capitalize() for e in EMOTION_ORDER],
+                gridcolor='rgba(0,0,0,0.05)'
+            ),
+            xaxis=dict(gridcolor='rgba(0,0,0,0.05)'),
             plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
             height=400, font=dict(family="Poppins"),
+            margin=dict(t=10, b=40),
             showlegend=False
         )
+
+        # Clear History button
+        col_title, col_clear = st.columns([4, 1])
+        with col_title:
+            st.markdown('<h4 style="margin:0;">📈 Emotional Timeline</h4>', unsafe_allow_html=True)
+        with col_clear:
+            if st.button("🗑️ Clear History", type="secondary", key="clear_history"):
+                st.session_state.logs = []
+                st.rerun()
+
         st.plotly_chart(fig, use_container_width=True)
 
         # Emotion distribution
@@ -818,22 +847,26 @@ with tab_timeline:
         )
         st.plotly_chart(fig2, use_container_width=True)
 
-        # Recent entries
-        st.markdown("##### 📋 Recent Entries")
+        # Recent entries (matching Flask: badge + timestamp, clean rows)
+        st.markdown("""
+        <div class="content-card">
+            <div class="section-header">
+                <span style="font-size:1.5rem;">🕐</span>
+                <h2>Recent Entries</h2>
+            </div>
+        """, unsafe_allow_html=True)
+
         for log in reversed(logs[-10:]):
             em = log['predicted_emotion']
-            ts = datetime.fromisoformat(log['timestamp']).strftime("%b %d, %H:%M")
+            ts = datetime.fromisoformat(log['timestamp']).strftime("%m/%d/%Y at %I:%M %p")
             st.markdown(f"""
-            <div class="content-card" style="padding:15px; margin-bottom:10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <span class="emotion-badge emotion-{em}">{EMOTION_EMOJIS.get(em,'')} {em.upper()}</span>
-                        <span style="color:#6b7280; margin-left:10px; font-size:0.85rem;">{ts}</span>
-                    </div>
-                </div>
-                <p style="margin:8px 0 0 0; color:#374151; font-size:0.9rem;">{log['text'][:150]}{'...' if len(log['text']) > 150 else ''}</p>
+            <div style="display:flex; align-items:center; padding:12px 15px; border-bottom:1px solid #f0f0f0;">
+                <span class="emotion-badge emotion-{em}" style="min-width:90px; text-align:center;">{em.upper()}</span>
+                <span style="color:#6b7280; margin-left:15px; font-size:0.9rem;">{ts}</span>
             </div>
             """, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
